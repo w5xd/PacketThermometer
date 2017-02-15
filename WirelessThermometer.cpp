@@ -58,13 +58,6 @@ TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
 
 #define USEACK        true // Request ACKs or not
 
-// Packet sent/received indicator LED (optional):
-
-#if 0
-#define LED           9 // LED positive pin
-#define GND           8 // LED ground pin
-#endif
-
 // Create a library object for our RFM69HCW module:
 
 RFM69 radio;
