@@ -217,9 +217,6 @@ void loop()
       radio.sendACK();
       Serial.println("ACK sent");
     }
-#if 0
-    Blink(LED,10);
-#endif
   }
 
   unsigned long now = millis();
@@ -259,10 +256,12 @@ void loop()
    int batt = analogRead(BATTERY_PIN);
    char sign = '+';
    static char buf[64];
-   if (temperature < 0){
+   if (temperature < 0.f){
 	   temperature = -temperature;
  	   sign = '-';
-  }
+  } else if (temperature == 0.f)
+    sign = ' ';
+    
   int whole = (int)temperature;
 
    sprintf(buf, "Battery: %d, temp: %c%d.%02d", batt,
