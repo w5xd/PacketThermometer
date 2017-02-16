@@ -56,7 +56,7 @@ TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
 
 // Use ACKnowledge when sending messages (or not):
 
-#define USEACK        true // Request ACKs or not
+static const bool USEACK = true; // Request ACKs or not
 
 // Create a library object for our RFM69HCW module:
 
@@ -118,151 +118,152 @@ void setup()
 
 void loop()
 {
-  // Set up a "buffer" for characters that we'll send:
+    // Set up a "buffer" for characters that we'll send:
 
-  static char sendbuffer[62];
-  static int sendlength = 0;
+    static char sendbuffer[62];
+    static int sendlength = 0;
 
-  // SENDING
+    // SENDING
 
-  // In this section, we'll gather serial characters and
-  // send them to the other node if we (1) get a carriage return,
-  // or (2) the buffer is full (61 characters).
+    // In this section, we'll gather serial characters and
+    // send them to the other node if we (1) get a carriage return,
+    // or (2) the buffer is full (61 characters).
 
-  // If there is any serial input, add it to the buffer:
+    // If there is any serial input, add it to the buffer:
 
-  if (Serial.available() > 0)
-  {
-    char input = Serial.read();
-
-    if (input != '\r') // not a carriage return
+    if (Serial.available() > 0)
     {
-      sendbuffer[sendlength] = input;
-      sendlength++;
+        char input = Serial.read();
+
+        if (input != '\r') // not a carriage return
+        {
+            sendbuffer[sendlength] = input;
+            sendlength++;
+        }
+
+        // If the input is a carriage return, or the buffer is full:
+
+        if ((input == '\r') || (sendlength == 61)) // CR or buffer full
+        {
+            // Send the packet!
+
+
+            Serial.print("sending to node ");
+            Serial.print(TONODEID, DEC);
+            Serial.print(", message [");
+            for (byte i = 0; i < sendlength; i++)
+                Serial.print(sendbuffer[i]);
+            Serial.println("]");
+
+            // There are two ways to send packets. If you want
+            // acknowledgements, use sendWithRetry():
+
+            if (USEACK)
+            {
+                if (radio.sendWithRetry(TONODEID, sendbuffer, sendlength))
+                    Serial.println("ACK received!");
+                else
+                    Serial.println("no ACK received");
+            }
+
+            // If you don't need acknowledgements, just use send():
+
+            else // don't use ACK
+            {
+                radio.send(TONODEID, sendbuffer, sendlength);
+            }
+
+            sendlength = 0; // reset the packet
+        }
     }
 
-    // If the input is a carriage return, or the buffer is full:
+    // RECEIVING
 
-    if ((input == '\r') || (sendlength == 61)) // CR or buffer full
+    // In this section, we'll check with the RFM69HCW to see
+    // if it has received any packets:
+
+    if (radio.receiveDone()) // Got one!
     {
-      // Send the packet!
+        // Print out the information:
 
+        Serial.print("received from node ");
+        Serial.print(radio.SENDERID, DEC);
+        Serial.print(", message [");
 
-      Serial.print("sending to node ");
-      Serial.print(TONODEID, DEC);
-      Serial.print(", message [");
-      for (byte i = 0; i < sendlength; i++)
-        Serial.print(sendbuffer[i]);
-      Serial.println("]");
+        // The actual message is contained in the DATA array,
+        // and is DATALEN bytes in size:
 
-      // There are two ways to send packets. If you want
-      // acknowledgements, use sendWithRetry():
+        for (byte i = 0; i < radio.DATALEN; i++)
+            Serial.print((char)radio.DATA[i]);
 
-      if (USEACK)
-      {
-        if (radio.sendWithRetry(TONODEID, sendbuffer, sendlength))
-          Serial.println("ACK received!");
-        else
-          Serial.println("no ACK received");
-      }
+        // RSSI is the "Receive Signal Strength Indicator",
+        // smaller numbers mean higher power.
 
-      // If you don't need acknowledgements, just use send():
+        Serial.print("], RSSI ");
+        Serial.println(radio.RSSI);
 
-      else // don't use ACK
-      {
-        radio.send(TONODEID, sendbuffer, sendlength);
-      }
+        // Send an ACK if requested.
+        // (You don't need this code if you're not using ACKs.)
 
-      sendlength = 0; // reset the packet
+        if (radio.ACKRequested())
+        {
+            radio.sendACK();
+            Serial.println("ACK sent");
+        }
     }
-  }
 
-  // RECEIVING
-
-  // In this section, we'll check with the RFM69HCW to see
-  // if it has received any packets:
-
-  if (radio.receiveDone()) // Got one!
-  {
-    // Print out the information:
-
-    Serial.print("received from node ");
-    Serial.print(radio.SENDERID, DEC);
-    Serial.print(", message [");
-
-    // The actual message is contained in the DATA array,
-    // and is DATALEN bytes in size:
-
-    for (byte i = 0; i < radio.DATALEN; i++)
-      Serial.print((char)radio.DATA[i]);
-
-    // RSSI is the "Receive Signal Strength Indicator",
-    // smaller numbers mean higher power.
-
-    Serial.print("], RSSI ");
-    Serial.println(radio.RSSI);
-
-    // Send an ACK if requested.
-    // (You don't need this code if you're not using ACKs.)
-
-    if (radio.ACKRequested())
+    unsigned long now = millis();
+    static unsigned long lastTemp;
+    if (now - lastTemp > 10000)
     {
-      radio.sendACK();
-      Serial.println("ACK sent");
+        lastTemp = now;
+        float temperature;
+        boolean alertPinState, alertRegisterState;
+
+        // Turn sensor on to start temperature measurement.
+        // Current consumtion typically ~10uA.
+        sensor0.wakeup();
+
+        // read temperature data
+        temperature = sensor0.readTempF();
+        //temperature = sensor0.readTempC();
+
+        // Check for Alert
+        alertPinState = digitalRead(ALERT_PIN); // read the Alert from pin
+        alertRegisterState = sensor0.alert();   // read the Alert from register
+
+        // Place sensor in sleep mode to save power.
+        // Current consumtion typically <0.5uA.
+        sensor0.sleep();
+
+        // Print temperature and alarm state
+        Serial.print("Temperature: ");
+        Serial.print(temperature);
+
+        Serial.print("\tAlert Pin: ");
+        Serial.print(alertPinState);
+
+        Serial.print("\tAlert Register: ");
+        Serial.println(alertRegisterState);
+
+        int batt = analogRead(BATTERY_PIN);
+        char sign = '+';
+        static char buf[64];
+        if (temperature < 0.f){
+            temperature = -temperature;
+            sign = '-';
+        }
+        else if (temperature == 0.f)
+            sign = ' ';
+
+        int whole = (int)temperature;
+
+        sprintf(buf, "Battery: %d, temp: %c%d.%02d", batt,
+            sign, whole,
+            (int)(100.f * (temperature - whole)));
+        Serial.println(buf);
+        radio.sendWithRetry(TONODEID, buf, strlen(buf));
+
     }
-  }
-
-  unsigned long now = millis();
-  static unsigned long lastTemp;
-  if (now - lastTemp > 10000)
-  {
-	  lastTemp = now;
-  float temperature;
-   boolean alertPinState, alertRegisterState;
-
-   // Turn sensor on to start temperature measurement.
-   // Current consumtion typically ~10uA.
-   sensor0.wakeup();
-
-   // read temperature data
-   temperature = sensor0.readTempF();
-   //temperature = sensor0.readTempC();
-
-   // Check for Alert
-   alertPinState = digitalRead(ALERT_PIN); // read the Alert from pin
-   alertRegisterState = sensor0.alert();   // read the Alert from register
-
-   // Place sensor in sleep mode to save power.
-   // Current consumtion typically <0.5uA.
-   sensor0.sleep();
-
-   // Print temperature and alarm state
-   Serial.print("Temperature: ");
-   Serial.print(temperature);
-
-   Serial.print("\tAlert Pin: ");
-   Serial.print(alertPinState);
-
-   Serial.print("\tAlert Register: ");
-   Serial.println(alertRegisterState);
-
-   int batt = analogRead(BATTERY_PIN);
-   char sign = '+';
-   static char buf[64];
-   if (temperature < 0.f){
-	   temperature = -temperature;
- 	   sign = '-';
-  } else if (temperature == 0.f)
-    sign = ' ';
-    
-  int whole = (int)temperature;
-
-   sprintf(buf, "Battery: %d, temp: %c%d.%02d", batt,
-		   sign, whole,
-		   (int)(100.f * (temperature - whole)));
-   Serial.println(buf);
-   radio.sendWithRetry(TONODEID, buf, strlen(buf));
-
-  }
 }
 
