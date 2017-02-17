@@ -32,15 +32,20 @@
 
 #if defined(USE_RFM69)
 #include <RFM69.h>
+#include <RFM69registers.h>
 #endif
 #if defined(USE_TMP102)
 #include <Wire.h>
-#include <SparkFunTMP102.h> // Used to send and receive specific information from our sensor
+#include <TMP102Helper.h> // Used to send and receive specific information from our sensor
 #endif
 
 const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
 const int TIMER_RC_GROUND_PIN = 4;
 const int TIMER_RC_PIN = 3;
+
+const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen for this long
+const unsigned long NormalListenAfterTransmit = 300;// only this long to send us a message after we send
+const unsigned int Loop10sRCtimerCount = 30; // approx 10 seconds per Count
 
 #if defined(USE_TMP102)
 // Connections to TMP102
@@ -50,13 +55,12 @@ const int TIMER_RC_PIN = 3;
 // SCL = A5
 const int ALERT_PIN = A3;
 
-TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
+HomeAutomationTools::TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
 // Sensor address can be changed with an external jumper to:
 // ADD0 - Address
 //  VCC - 0x49
 //  SDA - 0x4A
 //  SCL - 0x4B
-void sleepTMP102();
 #endif
 
 #define TONODEID      1   // Destination node ID
@@ -72,10 +76,38 @@ static const bool ENCRYPT = true; // Set to "true" to use encryption
 // Use ACKnowledge when sending messages (or not):
 static const bool USEACK = true; // Request ACKs or not
 static const int RFM69_RESET_PIN = A1;
+static RadioConfiguration radioConfiguration;
+
+class SleepRFM69 : public RFM69
+{
+public:
+	void startAsleep()
+	{
+	  digitalWrite(_slaveSelectPin, HIGH);
+	  pinMode(_slaveSelectPin, OUTPUT);
+	  SPI.begin();
+	  SPIoff();
+	}
+	void SPIoff()
+	{
+		sleep();
+        SPI.end();
+	    pinMode(PIN_SPI_MISO, INPUT);
+	    pinMode(PIN_SPI_MOSI, INPUT);
+	    pinMode(PIN_SPI_SCK, INPUT);
+	    pinMode(PIN_SPI_SS, INPUT);
+	    pinMode(_slaveSelectPin, INPUT);
+	}
+	void SPIon()
+	{
+	  digitalWrite(_slaveSelectPin, HIGH);
+	  pinMode(_slaveSelectPin, OUTPUT);
+	  SPI.begin();
+	}
+};
 // Create a library object for our RFM69HCW module:
-RFM69 radio;
+SleepRFM69 radio;
 #endif
-RadioConfiguration radioConfiguration;
 
 static unsigned long TimeOfWakeup;
 
@@ -96,6 +128,8 @@ void setup()
     pinMode(ALERT_PIN, INPUT);  // Declare alertPin as an input
     sensor0.begin();  // Join I2C bus
     // Initialize sensor0 settings
+    sensor0.setOneShotMode(); // set low power mode
+
     // These settings are saved in the sensor, even if it loses power
 
     // set the number of consecutive faults before triggering alarm.
@@ -122,30 +156,25 @@ void setup()
     //set T_LOW, the lower limit to shut turn off the alert
     sensor0.setLowTempC(127); // set T_LOW in C
 
-    sleepTMP102();
+    sensor0.end();
 #endif
 
 #if defined(USE_RFM69)
     //digitalWrite(RFM69_RESET_PIN, LOW);
     //pinMode(RFM69_RESET_PIN, OUTPUT);
 
+#if !defined(SLEEP_RFM69_ONLY)
     // Initialize the RFM69HCW:
     radio.initialize(radioConfiguration.FrequencyBandId(),
         radioConfiguration.NodeId(), radioConfiguration.NetworkId());
 
-#if !defined(SLEEP_RFM69_ONLY)
     radio.setHighPower(); // Always use this for RFM69HCW
     // Turn on encryption if desired:
 
     if (ENCRYPT)
         radio.encrypt(radioConfiguration.EncryptionKey());
 #else
-    radio.sleep();
-    SPI.end();
-    pinMode(10, INPUT);
-    pinMode(11, INPUT);
-    pinMode(12, INPUT);
-    pinMode(13, INPUT);
+    radio.startAsleep();
 #endif
 
 #endif
@@ -163,9 +192,6 @@ void setup()
     TimeOfWakeup = millis();
 }
 
-const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen for this long
-const unsigned long NormalListenAfterTransmit = 300;// only this long to send us a message after we send
-const unsigned int Loop10sRCtimerCount = 100; // approx 10 seconds per Count
 unsigned long ListenAfterTransmitMsec = FirstListenAfterTransmitMsec;
 unsigned int sampleCount;
 
@@ -297,11 +323,9 @@ void loop()
         // Turn sensor on to start temperature measurement.
         // Current consumtion typically ~10uA.
         sensor0.begin();
-        sensor0.wakeup();
 
         // read temperature data
-        temperature = sensor0.readTempF();
-        //temperature = sensor0.readTempC();
+        temperature = sensor0.readTempCfromShutdown();
 
 #if 0	// not using the alertPin
         boolean alertPinState, alertRegisterState;
@@ -309,7 +333,7 @@ void loop()
         alertPinState = digitalRead(ALERT_PIN); // read the Alert from pin
         alertRegisterState = sensor0.alert();   // read the Alert from register
 #endif
-       sleepTMP102();
+        sensor0.end();
 
 #if defined(USE_SERIAL)
         // Print temperature and alarm state
@@ -381,13 +405,8 @@ unsigned SleepTilNextSample()
 #endif
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-    radio.sleep();
-    SPI.end();
-    pinMode(10, INPUT);
-    pinMode(11, INPUT);
-    pinMode(12, INPUT);
-    pinMode(13, INPUT);
-#endif
+     radio.SPIoff();
+ #endif
 
 #if defined(USE_SERIAL)
     Serial.end();// wait for finish and turn off pins before sleep
@@ -463,21 +482,9 @@ unsigned SleepTilNextSample()
 #endif
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-    SPI.begin();
+    radio.SPIon();
 #endif
 
     return count;
 }
 
-#if defined(USE_TMP102)
-void sleepTMP102()
-{
-    sensor0.sleep();
-    Wire.end();
-    pinMode(A4, INPUT);
-    digitalWrite(A4, LOW);
-    pinMode(A5, INPUT);
-    digitalWrite(A5, LOW);
-}
-
-#endif
