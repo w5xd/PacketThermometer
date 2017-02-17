@@ -67,7 +67,7 @@ TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
 #define FREQUENCY     RF69_915MHZ
 
 // AES encryption (or not):
-static const bool ENCRYPT =  true; // Set to "true" to use encryption
+static const bool ENCRYPT = true; // Set to "true" to use encryption
 
 // Use ACKnowledge when sending messages (or not):
 static const bool USEACK = true; // Request ACKs or not
@@ -82,91 +82,91 @@ static unsigned long TimeOfWakeup;
 void setup()
 {
 #if defined(USE_SERIAL)
-  // Open a serial port so we can send keystrokes to the module:
+    // Open a serial port so we can send keystrokes to the module:
 
-  Serial.begin(9600);
-  Serial.print("Node ");
-  Serial.print(radioConfiguration.NodeId(),DEC);
-  Serial.print(" on network ");
-  Serial.print(radioConfiguration.NetworkId(), DEC);
-  Serial.println(" ready");
+    Serial.begin(9600);
+    Serial.print("Node ");
+    Serial.print(radioConfiguration.NodeId(), DEC);
+    Serial.print(" on network ");
+    Serial.print(radioConfiguration.NetworkId(), DEC);
+    Serial.println(" ready");
 #endif
 
 #if defined(USE_TMP102)
-   pinMode(ALERT_PIN,INPUT);  // Declare alertPin as an input
+    pinMode(ALERT_PIN, INPUT);  // Declare alertPin as an input
 #if !defined(SLEEP_TMP102_ONLY)
-   sensor0.begin();  // Join I2C bus
+    sensor0.begin();  // Join I2C bus
 
-   // Initialize sensor0 settings
-   // These settings are saved in the sensor, even if it loses power
+    // Initialize sensor0 settings
+    // These settings are saved in the sensor, even if it loses power
 
-   // set the number of consecutive faults before triggering alarm.
-   // 0-3: 0:1 fault, 1:2 faults, 2:4 faults, 3:6 faults.
-   sensor0.setFault(0);  // Trigger alarm immediately
+    // set the number of consecutive faults before triggering alarm.
+    // 0-3: 0:1 fault, 1:2 faults, 2:4 faults, 3:6 faults.
+    sensor0.setFault(0);  // Trigger alarm immediately
 
-   // set the polarity of the Alarm. (0:Active LOW, 1:Active HIGH).
-   sensor0.setAlertPolarity(1); // Active HIGH
+    // set the polarity of the Alarm. (0:Active LOW, 1:Active HIGH).
+    sensor0.setAlertPolarity(1); // Active HIGH
 
-   // set the sensor in Comparator Mode (0) or Interrupt Mode (1).
-   sensor0.setAlertMode(0); // Comparator Mode.
+    // set the sensor in Comparator Mode (0) or Interrupt Mode (1).
+    sensor0.setAlertMode(0); // Comparator Mode.
 
-   // set the Conversion Rate (how quickly the sensor gets a new reading)
-   //0-3: 0:0.25Hz, 1:1Hz, 2:4Hz, 3:8Hz
-   sensor0.setConversionRate(2);
+    // set the Conversion Rate (how quickly the sensor gets a new reading)
+    //0-3: 0:0.25Hz, 1:1Hz, 2:4Hz, 3:8Hz
+    sensor0.setConversionRate(2);
 
-   //set Extended Mode.
-   //0:12-bit Temperature(-55C to +128C) 1:13-bit Temperature(-55C to +150C)
-   sensor0.setExtendedMode(0);
+    //set Extended Mode.
+    //0:12-bit Temperature(-55C to +128C) 1:13-bit Temperature(-55C to +150C)
+    sensor0.setExtendedMode(0);
 
-   //set T_HIGH, the upper limit to trigger the alert on
-   sensor0.setHighTempF(85.0);  // set T_HIGH in F
-   //sensor0.setHighTempC(29.4); // set T_HIGH in C
+    //set T_HIGH, the upper limit to trigger the alert on
+    sensor0.setHighTempF(85.0);  // set T_HIGH in F
+    //sensor0.setHighTempC(29.4); // set T_HIGH in C
 
-   //set T_LOW, the lower limit to shut turn off the alert
-   sensor0.setLowTempF(84.0);  // set T_LOW in F
-   //sensor0.setLowTempC(26.67); // set T_LOW in C
+    //set T_LOW, the lower limit to shut turn off the alert
+    sensor0.setLowTempF(84.0);  // set T_LOW in F
+    //sensor0.setLowTempC(26.67); // set T_LOW in C
 #else
-   sensor0.begin();
-   sensor0.sleep();
-   Wire.end();
-   pinMode(A4, INPUT);
-   pinMode(A5, INPUT);
+    sensor0.begin();
+    sensor0.sleep();
+    Wire.end();
+    pinMode(A4, INPUT);
+    pinMode(A5, INPUT);
 #endif
 #endif
 
 #if defined(USE_RFM69)
-  // Initialize the RFM69HCW:
+    // Initialize the RFM69HCW:
 
-  radio.initialize(radioConfiguration.FrequencyBandId(),
-		  radioConfiguration.NodeId(), radioConfiguration.NetworkId());
+    radio.initialize(radioConfiguration.FrequencyBandId(),
+        radioConfiguration.NodeId(), radioConfiguration.NetworkId());
 #if !defined(SLEEP_RFM69_ONLY)
-  radio.setHighPower(); // Always use this for RFM69HCW
-  // Turn on encryption if desired:
+    radio.setHighPower(); // Always use this for RFM69HCW
+    // Turn on encryption if desired:
 
-  if (ENCRYPT)
-    radio.encrypt(radioConfiguration.EncryptionKey());
+    if (ENCRYPT)
+        radio.encrypt(radioConfiguration.EncryptionKey());
 #else
-  radio.sleep();
-  SPI.end();
-  pinMode(10, INPUT);
-  pinMode(11, INPUT);
-  pinMode(12, INPUT);
-  pinMode(13, INPUT);
+    radio.sleep();
+    SPI.end();
+    pinMode(10, INPUT);
+    pinMode(11, INPUT);
+    pinMode(12, INPUT);
+    pinMode(13, INPUT);
 #endif
 
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
-  analogReference(INTERNAL);
-  pinMode(BATTERY_PIN, INPUT);
-  analogRead(BATTERY_PIN);
-  delay(10); // let ADC settle
+    analogReference(INTERNAL);
+    pinMode(BATTERY_PIN, INPUT);
+    analogRead(BATTERY_PIN);
+    delay(10); // let ADC settle
 #endif
 
-   digitalWrite(TIMER_RC_GROUND_PIN, LOW);
-   pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
+    digitalWrite(TIMER_RC_GROUND_PIN, LOW);
+    pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
 
-  TimeOfWakeup = millis();
+    TimeOfWakeup = millis();
 }
 
 const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen for this long
@@ -190,7 +190,7 @@ void loop()
 {
     unsigned long now = millis();
     static int diag(0);
-	// Set up a "buffer" for characters that we'll send:
+    // Set up a "buffer" for characters that we'll send:
     static char sendbuffer[62];
     static int sendlength = 0;
 
@@ -204,7 +204,7 @@ void loop()
 
     if (Serial.available() > 0)
     {
-    	TimeOfWakeup = now; // extend timer while we hear something
+        TimeOfWakeup = now; // extend timer while we hear something
         char input = Serial.read();
 
         if (input != '\r') // not a carriage return
@@ -217,39 +217,39 @@ void loop()
 
         if ((input == '\r') || (sendlength == 61)) // CR or buffer full
         {
-        	sendbuffer[sendlength] = 0;
-        	if (radioConfiguration.ApplyCommand(sendbuffer))
-        	{
-        		Serial.print(sendbuffer);
-        		Serial.println(" command accepted");
-        	}
-        	else
-        	{            // Send the packet!
-            Serial.print("sending to node ");
-            Serial.print(TONODEID, DEC);
-            Serial.print(", message [");
-            for (byte i = 0; i < sendlength; i++)
-                Serial.print(sendbuffer[i]);
-            Serial.println("]");
+            sendbuffer[sendlength] = 0;
+            if (radioConfiguration.ApplyCommand(sendbuffer))
+            {
+                Serial.print(sendbuffer);
+                Serial.println(" command accepted");
+            }
+            else
+            {            // Send the packet!
+                Serial.print("sending to node ");
+                Serial.print(TONODEID, DEC);
+                Serial.print(", message [");
+                for (byte i = 0; i < sendlength; i++)
+                    Serial.print(sendbuffer[i]);
+                Serial.println("]");
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-            // There are two ways to send packets. If you want
-            // acknowledgements, use sendWithRetry():
+                // There are two ways to send packets. If you want
+                // acknowledgements, use sendWithRetry():
 
-            if (USEACK)
-            {
-                if (radio.sendWithRetry(TONODEID, sendbuffer, sendlength))
-                    Serial.println("ACK received!");
-                else
-                    Serial.println("no ACK received");
-            }
-            // If you don't need acknowledgements, just use send():
-            else // don't use ACK
-            {
-                radio.send(TONODEID, sendbuffer, sendlength);
-            }
+                if (USEACK)
+                {
+                    if (radio.sendWithRetry(TONODEID, sendbuffer, sendlength))
+                        Serial.println("ACK received!");
+                    else
+                        Serial.println("no ACK received");
+                }
+                // If you don't need acknowledgements, just use send():
+                else // don't use ACK
+                {
+                    radio.send(TONODEID, sendbuffer, sendlength);
+                }
 #endif
-        	}
+            }
             sendlength = 0; // reset the packet
         }
     }
@@ -264,7 +264,7 @@ void loop()
     if (radio.receiveDone()) // Got one!
     {
         // Print out the information:
-    	TimeOfWakeup = now; // extend sleep timer
+        TimeOfWakeup = now; // extend sleep timer
 #if defined(USE_SERIAL)
         Serial.print("received from node ");
         Serial.print(radio.SENDERID, DEC);
@@ -296,7 +296,7 @@ void loop()
     static bool SampledSinceSleep = false;
     if (!SampledSinceSleep)
     {
-    	SampledSinceSleep = true;
+        SampledSinceSleep = true;
 #if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
 
         float temperature;
@@ -344,10 +344,10 @@ void loop()
         int whole = (int)temperature;
 
         sprintf(buf, "Count: %d, Battery: %d, temp: %c%d.%02d, diag: %d", sampleCount++,
-        		batt,
+            batt,
             sign, whole,
             (int)(100.f * (temperature - whole)),
-			diag);
+            diag);
 #if defined(USE_SERIAL)
         Serial.println(buf);
 #endif
@@ -359,16 +359,16 @@ void loop()
 
     if (now - TimeOfWakeup > ListenAfterTransmitMsec)
     {
-    	diag = SleepTilNextSample();
+        diag = SleepTilNextSample();
         SampledSinceSleep = false;
         TimeOfWakeup = millis();
         ListenAfterTransmitMsec = NormalListenAfterTransmit;
-   }
+    }
 }
 
 void sleepPinInterrupt()
 {
-	detachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN));
+    detachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN));
 }
 
 unsigned SleepTilNextSample()
@@ -387,7 +387,7 @@ unsigned SleepTilNextSample()
 #endif
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-   	radio.sleep();
+    radio.sleep();
     SPI.end();
     pinMode(10, INPUT);
     pinMode(11, INPUT);
@@ -397,31 +397,34 @@ unsigned SleepTilNextSample()
 
 #if defined(USE_SERIAL)
     Serial.end();// wait for finish and turn off pins before sleep
+    pinMode(0, INPUT);
+    pinMode(1, INPUT);
 #endif
 
     unsigned count = 0;
+    power_all_disable(); // turn off everything
     while (count < Loop10sRCtimerCount)
     {
-		pinMode(TIMER_RC_PIN, OUTPUT);
-		digitalWrite(TIMER_RC_PIN, HIGH);
-		delay(10); // Charge the 1uF
-		cli();
-		attachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN), sleepPinInterrupt, LOW);
-		set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-		pinMode(TIMER_RC_PIN, INPUT);
-		power_all_disable(); // turn off everything
-		sleep_enable();
-		sleep_bod_disable();
-		sei();
-		sleep_cpu(); // about 800uA
-		sleep_disable();
-		sei();
-		power_all_enable();
-		count += 1;
+        power_timer0_enable(); // delay() requires this
+        pinMode(TIMER_RC_PIN, OUTPUT);
+        digitalWrite(TIMER_RC_PIN, HIGH);
+        delay(10); // Charge the 1uF
+        cli();
+        power_timer0_disable(); // now back off
+        attachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN), sleepPinInterrupt, LOW);
+        set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+        pinMode(TIMER_RC_PIN, INPUT);
+        sleep_enable();
+        sleep_bod_disable();
+        sei();
+        sleep_cpu(); // about 800uA
+        sleep_disable();
+        sei();
+        count += 1;
     }
+    power_all_enable();
 
 #if defined(USE_SERIAL)
-	// serial port doesn't like clock_prescale changes
     Serial.begin(9600);
     Serial.print(count, DEC);
     Serial.println(" wakeup");
@@ -432,7 +435,7 @@ unsigned SleepTilNextSample()
 #endif
 
 #if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
- 	Wire.begin();	// for sensor
+    Wire.begin();	// for sensor
 #endif
     return count;
 }
