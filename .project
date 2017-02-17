@@ -32,14 +32,14 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>HomeAutomationTools</name>
+			<type>2</type>
+			<location>C:/dev/Added Plugin Libraries/HomeAutomationTools</location>
+		</link>
+		<link>
 			<name>RFM69</name>
 			<type>2</type>
 			<location>C:/dev/Added Plugin Libraries/RFM69</location>
-		</link>
-		<link>
-			<name>RadioConfiguration</name>
-			<type>2</type>
-			<location>C:/dev/Added Plugin Libraries/RadioConfiguration</location>
 		</link>
 		<link>
 			<name>SPIFlash</name>
