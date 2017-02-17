@@ -56,11 +56,12 @@ TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
 //  VCC - 0x49
 //  SDA - 0x4A
 //  SCL - 0x4B
+void sleepTMP102();
 #endif
 
 #define TONODEID      1   // Destination node ID
-#if defined(USE_RFM69)
 
+#if defined(USE_RFM69)
 // RFM69 frequency, uncomment the frequency of your module:
 
 //#define FREQUENCY   RF69_433MHZ
@@ -68,10 +69,9 @@ TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
 
 // AES encryption (or not):
 static const bool ENCRYPT = true; // Set to "true" to use encryption
-
 // Use ACKnowledge when sending messages (or not):
 static const bool USEACK = true; // Request ACKs or not
-
+static const int RFM69_RESET_PIN = A1;
 // Create a library object for our RFM69HCW module:
 RFM69 radio;
 #endif
@@ -94,10 +94,7 @@ void setup()
 
 #if defined(USE_TMP102)
     pinMode(ALERT_PIN, INPUT);  // Declare alertPin as an input
-#if !defined(SLEEP_TMP102_ONLY)
-#if 0	// something in here ups the idle current consumption by about 300uA
     sensor0.begin();  // Join I2C bus
-
     // Initialize sensor0 settings
     // These settings are saved in the sensor, even if it loses power
 
@@ -106,7 +103,7 @@ void setup()
     sensor0.setFault(0);  // Trigger alarm immediately
 
     // set the polarity of the Alarm. (0:Active LOW, 1:Active HIGH).
-    sensor0.setAlertPolarity(1); // Active HIGH
+    sensor0.setAlertPolarity(0); // Active LOW
 
     // set the sensor in Comparator Mode (0) or Interrupt Mode (1).
     sensor0.setAlertMode(0); // Comparator Mode.
@@ -120,31 +117,22 @@ void setup()
     sensor0.setExtendedMode(0);
 
     //set T_HIGH, the upper limit to trigger the alert on
-    sensor0.setHighTempF(85.0);  // set T_HIGH in F
-    //sensor0.setHighTempC(29.4); // set T_HIGH in C
+    sensor0.setHighTempC(127); // set T_HIGH in C
 
     //set T_LOW, the lower limit to shut turn off the alert
-    sensor0.setLowTempF(84.0);  // set T_LOW in F
-    //sensor0.setLowTempC(26.67); // set T_LOW in C
+    sensor0.setLowTempC(127); // set T_LOW in C
 
-    sensor0.sleep();
-#endif
-#else
-    sensor0.begin();
-    sensor0.sleep();
-    Wire.end();
-    pinMode(A4, INPUT);
-    digitalWrite(A4, LOW);
-    pinMode(A5, INPUT);
-    digitalWrite(A5, LOW);
-#endif
+    sleepTMP102();
 #endif
 
 #if defined(USE_RFM69)
-    // Initialize the RFM69HCW:
+    //digitalWrite(RFM69_RESET_PIN, LOW);
+    //pinMode(RFM69_RESET_PIN, OUTPUT);
 
+    // Initialize the RFM69HCW:
     radio.initialize(radioConfiguration.FrequencyBandId(),
         radioConfiguration.NodeId(), radioConfiguration.NetworkId());
+
 #if !defined(SLEEP_RFM69_ONLY)
     radio.setHighPower(); // Always use this for RFM69HCW
     // Turn on encryption if desired:
@@ -177,7 +165,7 @@ void setup()
 
 const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen for this long
 const unsigned long NormalListenAfterTransmit = 300;// only this long to send us a message after we send
-const unsigned int Loop10sRCtimerCount = 8; // 80 seconds
+const unsigned int Loop10sRCtimerCount = 100; // approx 10 seconds per Count
 unsigned long ListenAfterTransmitMsec = FirstListenAfterTransmitMsec;
 unsigned int sampleCount;
 
@@ -321,12 +309,7 @@ void loop()
         alertPinState = digitalRead(ALERT_PIN); // read the Alert from pin
         alertRegisterState = sensor0.alert();   // read the Alert from register
 #endif
-        sensor0.sleep();
-        Wire.end();
-        pinMode(A4, INPUT);
-        digitalWrite(A4, LOW);
-        pinMode(A5, INPUT);
-        digitalWrite(A5, LOW);
+       sleepTMP102();
 
 #if defined(USE_SERIAL)
         // Print temperature and alarm state
@@ -485,3 +468,16 @@ unsigned SleepTilNextSample()
 
     return count;
 }
+
+#if defined(USE_TMP102)
+void sleepTMP102()
+{
+    sensor0.sleep();
+    Wire.end();
+    pinMode(A4, INPUT);
+    digitalWrite(A4, LOW);
+    pinMode(A5, INPUT);
+    digitalWrite(A5, LOW);
+}
+
+#endif
