@@ -95,6 +95,7 @@ void setup()
 #if defined(USE_TMP102)
     pinMode(ALERT_PIN, INPUT);  // Declare alertPin as an input
 #if !defined(SLEEP_TMP102_ONLY)
+#if 0	// something in here ups the idle current consumption by about 300uA
     sensor0.begin();  // Join I2C bus
 
     // Initialize sensor0 settings
@@ -125,12 +126,17 @@ void setup()
     //set T_LOW, the lower limit to shut turn off the alert
     sensor0.setLowTempF(84.0);  // set T_LOW in F
     //sensor0.setLowTempC(26.67); // set T_LOW in C
+
+    sensor0.sleep();
+#endif
 #else
     sensor0.begin();
     sensor0.sleep();
     Wire.end();
     pinMode(A4, INPUT);
+    digitalWrite(A4, LOW);
     pinMode(A5, INPUT);
+    digitalWrite(A5, LOW);
 #endif
 #endif
 
@@ -189,7 +195,6 @@ static unsigned SleepTilNextSample();
 void loop()
 {
     unsigned long now = millis();
-    static int diag(0);
     // Set up a "buffer" for characters that we'll send:
     static char sendbuffer[62];
     static int sendlength = 0;
@@ -299,31 +304,42 @@ void loop()
         SampledSinceSleep = true;
 #if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
 
-        float temperature;
-        boolean alertPinState, alertRegisterState;
+        float temperature(0);
 
         // Turn sensor on to start temperature measurement.
         // Current consumtion typically ~10uA.
+        sensor0.begin();
         sensor0.wakeup();
 
         // read temperature data
         temperature = sensor0.readTempF();
         //temperature = sensor0.readTempC();
 
+#if 0	// not using the alertPin
+        boolean alertPinState, alertRegisterState;
         // Check for Alert
         alertPinState = digitalRead(ALERT_PIN); // read the Alert from pin
         alertRegisterState = sensor0.alert();   // read the Alert from register
+#endif
+        sensor0.sleep();
+        Wire.end();
+        pinMode(A4, INPUT);
+        digitalWrite(A4, LOW);
+        pinMode(A5, INPUT);
+        digitalWrite(A5, LOW);
 
 #if defined(USE_SERIAL)
         // Print temperature and alarm state
         Serial.print("Temperature: ");
-        Serial.print(temperature);
+        Serial.println(temperature);
 
+#if 0
         Serial.print("\tAlert Pin: ");
         Serial.print(alertPinState);
 
         Serial.print("\tAlert Register: ");
         Serial.println(alertRegisterState);
+#endif
 #endif
 
         int batt(0);
@@ -343,11 +359,10 @@ void loop()
 
         int whole = (int)temperature;
 
-        sprintf(buf, "Count: %d, Battery: %d, temp: %c%d.%02d, diag: %d", sampleCount++,
+        sprintf(buf, "Count: %d, Battery: %d, temp: %c%d.%02d", sampleCount++,
             batt,
             sign, whole,
-            (int)(100.f * (temperature - whole)),
-            diag);
+            (int)(100.f * (temperature - whole)));
 #if defined(USE_SERIAL)
         Serial.println(buf);
 #endif
@@ -359,31 +374,27 @@ void loop()
 
     if (now - TimeOfWakeup > ListenAfterTransmitMsec)
     {
-        diag = SleepTilNextSample();
+        SleepTilNextSample();
         SampledSinceSleep = false;
         TimeOfWakeup = millis();
         ListenAfterTransmitMsec = NormalListenAfterTransmit;
     }
 }
 
-void sleepPinInterrupt()
+
+#if !defined(SLEEP_WITH_TIMER2)
+void sleepPinInterrupt()	// requires 1uF and 10M between two pins
 {
     detachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN));
 }
+#else
+ISR(TIMER2_OVF_vect) {} // do nothing but wake up
+#endif
 
 unsigned SleepTilNextSample()
 {
 #if defined(USE_SERIAL)
     Serial.println("sleep");
-#endif
-
-#if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
-    // Place sensor in sleep mode to save power.
-    // Current consumption typically <0.5uA.
-    sensor0.sleep();
-    Wire.end();
-    pinMode(A4, INPUT);
-    pinMode(A5, INPUT);
 #endif
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
@@ -403,6 +414,8 @@ unsigned SleepTilNextSample()
 
     unsigned count = 0;
     power_all_disable(); // turn off everything
+
+#if !defined(SLEEP_WITH_TIMER2) // this requires 1uF and 10M in parallel between pins 3 & 4
     while (count < Loop10sRCtimerCount)
     {
         power_timer0_enable(); // delay() requires this
@@ -417,11 +430,47 @@ unsigned SleepTilNextSample()
         sleep_enable();
         sleep_bod_disable();
         sei();
-        sleep_cpu(); // about 800uA
+        sleep_cpu(); // about 500uA, average. About 400uA and rises as cap discharges
         sleep_disable();
         sei();
         count += 1;
     }
+#else
+    power_timer2_enable(); // need this one timer
+    clock_prescale_set(clock_div_256); // slow CPU clock down by 256
+    while (count < Loop10sRCtimerCount)
+    {
+        cli();
+        /* Normal timer operation.*/
+        TCCR2A = 0x00;
+
+        /* Clear the timer counter register.
+         * You can pre-load this register with a value in order to
+         * reduce the timeout period, say if you wanted to wake up
+         * ever 4.0 seconds exactly.
+         */
+        TCNT2 = 0x0000;
+
+        /* Configure the prescaler for 1:1024, giving us a
+         * timeout of 1024 * 256 / 8000000 = 32.768 msec
+         */
+        TCCR2B = 0x07; // 1024 prescale
+
+        /* Enable the timer overlow interrupt. */
+        TIMSK2 = 0x01;
+        TIFR2 = 1; // Clear any current overflow flag
+
+        set_sleep_mode(SLEEP_MODE_PWR_SAVE);
+        sleep_enable();
+        sleep_bod_disable();
+        sei();
+        sleep_cpu();	// 600 uA -- steady
+        sleep_disable();
+        sei();
+        count += 1;
+    }
+    clock_prescale_set(clock_div_1);
+#endif
     power_all_enable();
 
 #if defined(USE_SERIAL)
@@ -434,9 +483,5 @@ unsigned SleepTilNextSample()
     SPI.begin();
 #endif
 
-#if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
-    Wire.begin();	// for sensor
-#endif
     return count;
 }
-
