@@ -1,4 +1,9 @@
 #include "WirelessThermometer.h"
+#include <RadioConfiguration.h>
+#include <SPI.h>
+#include <avr/sleep.h>
+#include <avr/interrupt.h>
+#include <avr/power.h>
 // RFM69HCW Example Sketch
 // Send serial input characters from one RFM69 node to another
 // Based on RFM69 library sample code by Felix Rusu
@@ -18,19 +23,32 @@
 // SparkFun repository: https://github.com/sparkfun/RFM69HCW_Breakout
 
 // Include the RFM69 and SPI libraries:
+#define USE_TMP102
+//#define SLEEP_TMP102_ONLY
+#define USE_RFM69
+//#define SLEEP_RFM69_ONLY
+#define USE_SERIAL
+#define TELEMETER_BATTERY_V
 
+#if defined(USE_RFM69)
 #include <RFM69.h>
-#include <SPI.h>
+#endif
+#if defined(USE_TMP102)
 #include <Wire.h>
-#include <SparkFunTMP102.h> // Used to send and recieve specific information from our sensor
+#include <SparkFunTMP102.h> // Used to send and receive specific information from our sensor
+#endif
 
-// Connections
+const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
+const int TIMER_RC_GROUND_PIN = 4;
+const int TIMER_RC_PIN = 3;
+
+#if defined(USE_TMP102)
+// Connections to TMP102
 // VCC = 3.3V
 // GND = GND
 // SDA = A4
 // SCL = A5
 const int ALERT_PIN = A3;
-const int BATTERY_PIN = A0;
 
 TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
 // Sensor address can be changed with an external jumper to:
@@ -38,11 +56,10 @@ TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
 //  VCC - 0x49
 //  SDA - 0x4A
 //  SCL - 0x4B
-// Addresses for this node. CHANGE THESE FOR EACH NODE!
+#endif
 
-#define NETWORKID     0   // Must be the same for all nodes
-#define MYNODEID      2   // My node ID
 #define TONODEID      1   // Destination node ID
+#if defined(USE_RFM69)
 
 // RFM69 frequency, uncomment the frequency of your module:
 
@@ -50,29 +67,34 @@ TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
 #define FREQUENCY     RF69_915MHZ
 
 // AES encryption (or not):
-
-#define ENCRYPT       true // Set to "true" to use encryption
-#define ENCRYPTKEY    "TOPSECRETPASSWRD" // Use the same 16-byte key on all nodes
+static const bool ENCRYPT =  true; // Set to "true" to use encryption
 
 // Use ACKnowledge when sending messages (or not):
-
 static const bool USEACK = true; // Request ACKs or not
 
 // Create a library object for our RFM69HCW module:
-
 RFM69 radio;
+#endif
+RadioConfiguration radioConfiguration;
 
+static unsigned long TimeOfWakeup;
 
 void setup()
 {
+#if defined(USE_SERIAL)
   // Open a serial port so we can send keystrokes to the module:
 
   Serial.begin(9600);
   Serial.print("Node ");
-  Serial.print(MYNODEID,DEC);
+  Serial.print(radioConfiguration.NodeId(),DEC);
+  Serial.print(" on network ");
+  Serial.print(radioConfiguration.NetworkId(), DEC);
   Serial.println(" ready");
+#endif
 
-  pinMode(ALERT_PIN,INPUT);  // Declare alertPin as an input
+#if defined(USE_TMP102)
+   pinMode(ALERT_PIN,INPUT);  // Declare alertPin as an input
+#if !defined(SLEEP_TMP102_ONLY)
    sensor0.begin();  // Join I2C bus
 
    // Initialize sensor0 settings
@@ -103,28 +125,77 @@ void setup()
    //set T_LOW, the lower limit to shut turn off the alert
    sensor0.setLowTempF(84.0);  // set T_LOW in F
    //sensor0.setLowTempC(26.67); // set T_LOW in C
+#else
+   sensor0.begin();
+   sensor0.sleep();
+   Wire.end();
+   pinMode(A4, INPUT);
+   pinMode(A5, INPUT);
+#endif
+#endif
+
+#if defined(USE_RFM69)
   // Initialize the RFM69HCW:
 
-  radio.initialize(FREQUENCY, MYNODEID, NETWORKID);
+  radio.initialize(radioConfiguration.FrequencyBandId(),
+		  radioConfiguration.NodeId(), radioConfiguration.NetworkId());
+#if !defined(SLEEP_RFM69_ONLY)
   radio.setHighPower(); // Always use this for RFM69HCW
-
   // Turn on encryption if desired:
 
   if (ENCRYPT)
-    radio.encrypt(ENCRYPTKEY);
+    radio.encrypt(radioConfiguration.EncryptionKey());
+#else
+  radio.sleep();
+  SPI.end();
+  pinMode(10, INPUT);
+  pinMode(11, INPUT);
+  pinMode(12, INPUT);
+  pinMode(13, INPUT);
+#endif
+
+#endif
+
+#if defined(TELEMETER_BATTERY_V)
   analogReference(INTERNAL);
-  pinMode(BATTERY_PIN, INPUT_PULLUP);
+  pinMode(BATTERY_PIN, INPUT);
+  analogRead(BATTERY_PIN);
+  delay(10); // let ADC settle
+#endif
+
+   digitalWrite(TIMER_RC_GROUND_PIN, LOW);
+   pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
+
+  TimeOfWakeup = millis();
 }
+
+const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen for this long
+const unsigned long NormalListenAfterTransmit = 300;// only this long to send us a message after we send
+const unsigned int Loop10sRCtimerCount = 8; // 80 seconds
+unsigned long ListenAfterTransmitMsec = FirstListenAfterTransmitMsec;
+unsigned int sampleCount;
+
+/* Power management:
+ * Every SleepBetweenSamplesMsec we wake up and send a sample.
+ * For ListenAfterTransmitMsec we stay awake and listen on the radio.
+ * Then we power down all: temperature sensor, radio and CPU
+ * We use the Atmega "Power Save" mode with Timer/Counter2 running to wake us
+ * up after SleepBetweenSamplesMsec
+ *
+ */
+
+static unsigned SleepTilNextSample();
 
 void loop()
 {
-    // Set up a "buffer" for characters that we'll send:
-
+    unsigned long now = millis();
+    static int diag(0);
+	// Set up a "buffer" for characters that we'll send:
     static char sendbuffer[62];
     static int sendlength = 0;
 
     // SENDING
-
+#if defined(USE_SERIAL)
     // In this section, we'll gather serial characters and
     // send them to the other node if we (1) get a carriage return,
     // or (2) the buffer is full (61 characters).
@@ -133,6 +204,7 @@ void loop()
 
     if (Serial.available() > 0)
     {
+    	TimeOfWakeup = now; // extend timer while we hear something
         char input = Serial.read();
 
         if (input != '\r') // not a carriage return
@@ -145,9 +217,14 @@ void loop()
 
         if ((input == '\r') || (sendlength == 61)) // CR or buffer full
         {
-            // Send the packet!
-
-
+        	sendbuffer[sendlength] = 0;
+        	if (radioConfiguration.ApplyCommand(sendbuffer))
+        	{
+        		Serial.print(sendbuffer);
+        		Serial.println(" command accepted");
+        	}
+        	else
+        	{            // Send the packet!
             Serial.print("sending to node ");
             Serial.print(TONODEID, DEC);
             Serial.print(", message [");
@@ -155,6 +232,7 @@ void loop()
                 Serial.print(sendbuffer[i]);
             Serial.println("]");
 
+#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
             // There are two ways to send packets. If you want
             // acknowledgements, use sendWithRetry():
 
@@ -165,18 +243,19 @@ void loop()
                 else
                     Serial.println("no ACK received");
             }
-
             // If you don't need acknowledgements, just use send():
-
             else // don't use ACK
             {
                 radio.send(TONODEID, sendbuffer, sendlength);
             }
-
+#endif
+        	}
             sendlength = 0; // reset the packet
         }
     }
+#endif
 
+#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
     // RECEIVING
 
     // In this section, we'll check with the RFM69HCW to see
@@ -185,7 +264,8 @@ void loop()
     if (radio.receiveDone()) // Got one!
     {
         // Print out the information:
-
+    	TimeOfWakeup = now; // extend sleep timer
+#if defined(USE_SERIAL)
         Serial.print("received from node ");
         Serial.print(radio.SENDERID, DEC);
         Serial.print(", message [");
@@ -201,7 +281,7 @@ void loop()
 
         Serial.print("], RSSI ");
         Serial.println(radio.RSSI);
-
+#endif
         // Send an ACK if requested.
         // (You don't need this code if you're not using ACKs.)
 
@@ -211,12 +291,14 @@ void loop()
             Serial.println("ACK sent");
         }
     }
+#endif
 
-    unsigned long now = millis();
-    static unsigned long lastTemp;
-    if (now - lastTemp > 10000)
+    static bool SampledSinceSleep = false;
+    if (!SampledSinceSleep)
     {
-        lastTemp = now;
+    	SampledSinceSleep = true;
+#if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
+
         float temperature;
         boolean alertPinState, alertRegisterState;
 
@@ -232,10 +314,7 @@ void loop()
         alertPinState = digitalRead(ALERT_PIN); // read the Alert from pin
         alertRegisterState = sensor0.alert();   // read the Alert from register
 
-        // Place sensor in sleep mode to save power.
-        // Current consumtion typically <0.5uA.
-        sensor0.sleep();
-
+#if defined(USE_SERIAL)
         // Print temperature and alarm state
         Serial.print("Temperature: ");
         Serial.print(temperature);
@@ -245,8 +324,14 @@ void loop()
 
         Serial.print("\tAlert Register: ");
         Serial.println(alertRegisterState);
+#endif
 
-        int batt = analogRead(BATTERY_PIN);
+        int batt(0);
+#if defined(TELEMETER_BATTERY_V)
+        pinMode(BATTERY_PIN, INPUT_PULLUP); // sample the battery
+        batt = analogRead(BATTERY_PIN);
+        pinMode(BATTERY_PIN, INPUT); // turn off battery drain
+#endif
         char sign = '+';
         static char buf[64];
         if (temperature < 0.f){
@@ -258,12 +343,97 @@ void loop()
 
         int whole = (int)temperature;
 
-        sprintf(buf, "Battery: %d, temp: %c%d.%02d", batt,
+        sprintf(buf, "Count: %d, Battery: %d, temp: %c%d.%02d, diag: %d", sampleCount++,
+        		batt,
             sign, whole,
-            (int)(100.f * (temperature - whole)));
+            (int)(100.f * (temperature - whole)),
+			diag);
+#if defined(USE_SERIAL)
         Serial.println(buf);
+#endif
+#endif
+#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
         radio.sendWithRetry(TONODEID, buf, strlen(buf));
-
+#endif
     }
+
+    if (now - TimeOfWakeup > ListenAfterTransmitMsec)
+    {
+    	diag = SleepTilNextSample();
+        SampledSinceSleep = false;
+        TimeOfWakeup = millis();
+        ListenAfterTransmitMsec = NormalListenAfterTransmit;
+   }
+}
+
+void sleepPinInterrupt()
+{
+	detachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN));
+}
+
+unsigned SleepTilNextSample()
+{
+#if defined(USE_SERIAL)
+    Serial.println("sleep");
+#endif
+
+#if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
+    // Place sensor in sleep mode to save power.
+    // Current consumption typically <0.5uA.
+    sensor0.sleep();
+    Wire.end();
+    pinMode(A4, INPUT);
+    pinMode(A5, INPUT);
+#endif
+
+#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
+   	radio.sleep();
+    SPI.end();
+    pinMode(10, INPUT);
+    pinMode(11, INPUT);
+    pinMode(12, INPUT);
+    pinMode(13, INPUT);
+#endif
+
+#if defined(USE_SERIAL)
+    Serial.end();// wait for finish and turn off pins before sleep
+#endif
+
+    unsigned count = 0;
+    while (count < Loop10sRCtimerCount)
+    {
+		pinMode(TIMER_RC_PIN, OUTPUT);
+		digitalWrite(TIMER_RC_PIN, HIGH);
+		delay(10); // Charge the 1uF
+		cli();
+		attachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN), sleepPinInterrupt, LOW);
+		set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+		pinMode(TIMER_RC_PIN, INPUT);
+		power_all_disable(); // turn off everything
+		sleep_enable();
+		sleep_bod_disable();
+		sei();
+		sleep_cpu(); // about 800uA
+		sleep_disable();
+		sei();
+		power_all_enable();
+		count += 1;
+    }
+
+#if defined(USE_SERIAL)
+	// serial port doesn't like clock_prescale changes
+    Serial.begin(9600);
+    Serial.print(count, DEC);
+    Serial.println(" wakeup");
+#endif
+
+#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
+    SPI.begin();
+#endif
+
+#if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
+ 	Wire.begin();	// for sensor
+#endif
+    return count;
 }
 

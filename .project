@@ -37,6 +37,11 @@
 			<location>C:/dev/Added Plugin Libraries/RFM69</location>
 		</link>
 		<link>
+			<name>RadioConfiguration</name>
+			<type>2</type>
+			<location>C:/dev/Added Plugin Libraries/RadioConfiguration</location>
+		</link>
+		<link>
 			<name>SPIFlash</name>
 			<type>2</type>
 			<location>C:/dev/Added Plugin Libraries/SPIFlash</location>
