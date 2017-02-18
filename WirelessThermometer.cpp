@@ -1,32 +1,28 @@
 #include "WirelessThermometer.h"
 #include <RadioConfiguration.h>
 #include <SPI.h>
+#include <EEPROM.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include <avr/power.h>
-// RFM69HCW Example Sketch
-// Send serial input characters from one RFM69 node to another
-// Based on RFM69 library sample code by Felix Rusu
-// http://LowPowerLab.com/contact
-// Modified for RFM69HCW by Mike Grusin, 4/16
 
-// This sketch will show you the basics of using an
-// RFM69HCW radio module. SparkFun's part numbers are:
+// SparkFun's part numbers are:
 // 915MHz: https://www.sparkfun.com/products/12775
 // 434MHz: https://www.sparkfun.com/products/12823
 
-// See the hook-up guide for wiring instructions:
+// Parts of the code in this sketch are taken from these sparkfun pages,
+// as are all the wiring instructions:
 // https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide
+// https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide
 
 // Uses the RFM69 library by Felix Rusu, LowPowerLab.com
 // Original library: https://www.github.com/lowpowerlab/rfm69
-// SparkFun repository: https://github.com/sparkfun/RFM69HCW_Breakout
 
 // Include the RFM69 and SPI libraries:
 #define USE_TMP102
-//#define SLEEP_TMP102_ONLY
+//#define SLEEP_TMP102_ONLY /* for testing only*/
 #define USE_RFM69
-//#define SLEEP_RFM69_ONLY
+//#define SLEEP_RFM69_ONLY /* for testing only */
 #define USE_SERIAL
 #define TELEMETER_BATTERY_V
 
@@ -34,18 +30,19 @@
 #include <RFM69.h>
 #include <RFM69registers.h>
 #endif
+
 #if defined(USE_TMP102)
 #include <Wire.h>
 #include <TMP102Helper.h> // Used to send and receive specific information from our sensor
 #endif
 
+namespace {
 const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
 const int TIMER_RC_GROUND_PIN = 4;
-const int TIMER_RC_PIN = 3;
+const int TIMER_RC_PIN = 3; // sleep uProc using RC circuit on this pin
 
-const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen for this long
-const unsigned long NormalListenAfterTransmit = 300;// only this long to send us a message after we send
-const unsigned int Loop10sRCtimerCount = 30; // approx 10 seconds per Count
+const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen Serial/RF for this long
+const unsigned long NormalListenAfterTransmit = 300;// after TX, go to RX for this long
 
 #if defined(USE_TMP102)
 // Connections to TMP102
@@ -63,8 +60,6 @@ HomeAutomationTools::TMP102 sensor0(0x48); // Initialize sensor at I2C address 0
 //  SCL - 0x4B
 #endif
 
-#define TONODEID      1   // Destination node ID
-
 #if defined(USE_RFM69)
 // RFM69 frequency, uncomment the frequency of your module:
 
@@ -72,11 +67,12 @@ HomeAutomationTools::TMP102 sensor0(0x48); // Initialize sensor at I2C address 0
 #define FREQUENCY     RF69_915MHZ
 
 // AES encryption (or not):
-static const bool ENCRYPT = true; // Set to "true" to use encryption
+const bool ENCRYPT = true; // Set to "true" to use encryption
 // Use ACKnowledge when sending messages (or not):
-static const bool USEACK = true; // Request ACKs or not
-static const int RFM69_RESET_PIN = A1;
-static RadioConfiguration radioConfiguration;
+const bool USEACK = true; // Request ACKs or not
+const int RFM69_RESET_PIN = A1;
+const uint8_t GATEWAY_NODEID = 1;
+RadioConfiguration radioConfiguration;
 
 class SleepRFM69 : public RFM69
 {
@@ -88,10 +84,17 @@ public:
 	  SPI.begin();
 	  SPIoff();
 	}
+
 	void SPIoff()
 	{
+		// this command drops the idle current by about 100 uA
+		writeReg(REG_OPMODE, (readReg(REG_OPMODE) & 0xE3) | RF_OPMODE_SLEEP | RF_OPMODE_LISTENABORT);
+		 _mode = RF69_MODE_STANDBY; // force base class do the write
 		sleep();
         SPI.end();
+
+        // set high impedance for all pins connected to RFM69
+        // ...except VDD, of course
 	    pinMode(PIN_SPI_MISO, INPUT);
 	    pinMode(PIN_SPI_MOSI, INPUT);
 	    pinMode(PIN_SPI_SCK, INPUT);
@@ -109,7 +112,10 @@ public:
 SleepRFM69 radio;
 #endif
 
-static unsigned long TimeOfWakeup;
+unsigned long TimeOfWakeup;
+const unsigned MAX_SLEEP_LOOP_COUNT = 5000; // a couple times per day is minimum check-in interval
+unsigned SleepLoopTimerCount = 30; // approx 10 seconds per Count
+}
 
 void setup()
 {
@@ -189,31 +195,58 @@ void setup()
     digitalWrite(TIMER_RC_GROUND_PIN, LOW);
     pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
 
-    TimeOfWakeup = millis();
+    TimeOfWakeup = millis(); // start loop timer now
+
+    unsigned eepromLoopCount(0);
+    EEPROM.get(RadioConfiguration::TotalEpromUsed(), eepromLoopCount);
+    if (eepromLoopCount && eepromLoopCount <= MAX_SLEEP_LOOP_COUNT)
+    	SleepLoopTimerCount = eepromLoopCount;
 }
 
-unsigned long ListenAfterTransmitMsec = FirstListenAfterTransmitMsec;
-unsigned int sampleCount;
 
 /* Power management:
- * Every SleepBetweenSamplesMsec we wake up and send a sample.
- * For ListenAfterTransmitMsec we stay awake and listen on the radio.
- * Then we power down all: temperature sensor, radio and CPU
- * We use the Atmega "Power Save" mode with Timer/Counter2 running to wake us
- * up after SleepBetweenSamplesMsec
- *
+ * For ListenAfterTransmitMsec we stay awake and listen on the radio and Serial.
+ * Then we power down all: temperature sensor, radio and CPU and CPU
+ * sleep using SleepTilNextSample.
  */
 
-static unsigned SleepTilNextSample();
+namespace {
+    unsigned SleepTilNextSample();
+
+    unsigned long ListenAfterTransmitMsec = FirstListenAfterTransmitMsec;
+    unsigned int sampleCount;
+
+    bool processCommand(const char *pCmd)
+    {
+        static const char SET_LOOPCOUNT[] = "SetDelayLoopCount";
+        if (strncmp(pCmd, SET_LOOPCOUNT, sizeof(SET_LOOPCOUNT) - 1) == 0)
+        {
+            pCmd = RadioConfiguration::SkipWhiteSpace(
+            		pCmd +	sizeof(SET_LOOPCOUNT)-1);
+            if (pCmd)
+            {
+                unsigned v = RadioConfiguration::toDecimalUnsigned(pCmd);
+                // don't allow zero, nor more than MAX_SLEEP_LOOP_COUNT
+                if (v && v < MAX_SLEEP_LOOP_COUNT)
+                {
+                    SleepLoopTimerCount = v;
+                    EEPROM.put(RadioConfiguration::TotalEpromUsed(), SleepLoopTimerCount);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}
 
 void loop()
 {
     unsigned long now = millis();
+
     // Set up a "buffer" for characters that we'll send:
     static char sendbuffer[62];
     static int sendlength = 0;
 
-    // SENDING
 #if defined(USE_SERIAL)
     // In this section, we'll gather serial characters and
     // send them to the other node if we (1) get a carriage return,
@@ -234,40 +267,18 @@ void loop()
 
         // If the input is a carriage return, or the buffer is full:
 
-        if ((input == '\r') || (sendlength == 61)) // CR or buffer full
+        if ((input == '\r') || (sendlength == sizeof(sendbuffer) - 1)) // CR or buffer full
         {
             sendbuffer[sendlength] = 0;
-            if (radioConfiguration.ApplyCommand(sendbuffer))
+            if (processCommand(sendbuffer))
             {
                 Serial.print(sendbuffer);
-                Serial.println(" command accepted");
+                Serial.println(" command accepted for thermometer");
             }
-            else
-            {            // Send the packet!
-                Serial.print("sending to node ");
-                Serial.print(TONODEID, DEC);
-                Serial.print(", message [");
-                for (byte i = 0; i < sendlength; i++)
-                    Serial.print(sendbuffer[i]);
-                Serial.println("]");
-
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-                // There are two ways to send packets. If you want
-                // acknowledgements, use sendWithRetry():
-
-                if (USEACK)
-                {
-                    if (radio.sendWithRetry(TONODEID, sendbuffer, sendlength))
-                        Serial.println("ACK received!");
-                    else
-                        Serial.println("no ACK received");
-                }
-                // If you don't need acknowledgements, just use send():
-                else // don't use ACK
-                {
-                    radio.send(TONODEID, sendbuffer, sendlength);
-                }
-#endif
+            else if (radioConfiguration.ApplyCommand(sendbuffer))
+            {
+                Serial.print(sendbuffer);
+                Serial.println(" command accepted for radio");
             }
             sendlength = 0; // reset the packet
         }
@@ -276,7 +287,6 @@ void loop()
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
     // RECEIVING
-
     // In this section, we'll check with the RFM69HCW to see
     // if it has received any packets:
 
@@ -301,13 +311,20 @@ void loop()
         Serial.print("], RSSI ");
         Serial.println(radio.RSSI);
 #endif
-        // Send an ACK if requested.
-        // (You don't need this code if you're not using ACKs.)
-
+        // RFM69 ensures trailing zero byte, unless buffer is full...so
+        radio.DATA[sizeof(radio.DATA) - 1] = 0; // ...if buffer is full, ignore last byte
+        if (processCommand((const char *)&radio.DATA[0]))
+        {
+#if defined(USE_SERIAL)
+        	Serial.println("Received command accepted");
+#endif
+        }
         if (radio.ACKRequested())
         {
             radio.sendACK();
+#if defined(USE_SERIAL)
             Serial.println("ACK sent");
+#endif
         }
     }
 #endif
@@ -316,37 +333,18 @@ void loop()
     if (!SampledSinceSleep)
     {
         SampledSinceSleep = true;
+
 #if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
 
-        float temperature(0);
-
-        // Turn sensor on to start temperature measurement.
-        // Current consumtion typically ~10uA.
         sensor0.begin();
-
         // read temperature data
-        temperature = sensor0.readTempCfromShutdown();
-
-#if 0	// not using the alertPin
-        boolean alertPinState, alertRegisterState;
-        // Check for Alert
-        alertPinState = digitalRead(ALERT_PIN); // read the Alert from pin
-        alertRegisterState = sensor0.alert();   // read the Alert from register
-#endif
+        float temperature = sensor0.readTempCfromShutdown();
         sensor0.end();
 
 #if defined(USE_SERIAL)
         // Print temperature and alarm state
         Serial.print("Temperature: ");
         Serial.println(temperature);
-
-#if 0
-        Serial.print("\tAlert Pin: ");
-        Serial.print(alertPinState);
-
-        Serial.print("\tAlert Register: ");
-        Serial.println(alertRegisterState);
-#endif
 #endif
 
         int batt(0);
@@ -375,7 +373,7 @@ void loop()
 #endif
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        radio.sendWithRetry(TONODEID, buf, strlen(buf));
+        radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
     }
 
@@ -388,7 +386,6 @@ void loop()
     }
 }
 
-
 #if !defined(SLEEP_WITH_TIMER2)
 void sleepPinInterrupt()	// requires 1uF and 10M between two pins
 {
@@ -398,93 +395,106 @@ void sleepPinInterrupt()	// requires 1uF and 10M between two pins
 ISR(TIMER2_OVF_vect) {} // do nothing but wake up
 #endif
 
-unsigned SleepTilNextSample()
-{
+namespace {
+    unsigned SleepTilNextSample()
+    {
+
 #if defined(USE_SERIAL)
-    Serial.println("sleep");
+        Serial.println("sleep");
+        Serial.end();// wait for finish and turn off pins before sleep
+        pinMode(0, INPUT); // Arduino libraries have a symbolic definition for Serial pins?
+        pinMode(1, INPUT);
 #endif
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-     radio.SPIoff();
- #endif
-
-#if defined(USE_SERIAL)
-    Serial.end();// wait for finish and turn off pins before sleep
-    pinMode(0, INPUT);
-    pinMode(1, INPUT);
+        radio.SPIoff();
 #endif
 
-    unsigned count = 0;
-    power_all_disable(); // turn off everything
+        unsigned count = 0;
+        power_all_disable(); // turn off everything
 
-#if !defined(SLEEP_WITH_TIMER2) // this requires 1uF and 10M in parallel between pins 3 & 4
-    while (count < Loop10sRCtimerCount)
-    {
-        power_timer0_enable(); // delay() requires this
-        pinMode(TIMER_RC_PIN, OUTPUT);
-        digitalWrite(TIMER_RC_PIN, HIGH);
-        delay(10); // Charge the 1uF
-        cli();
-        power_timer0_disable(); // now back off
-        attachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN), sleepPinInterrupt, LOW);
-        set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-        pinMode(TIMER_RC_PIN, INPUT);
-        sleep_enable();
-        sleep_bod_disable();
-        sei();
-        sleep_cpu(); // about 500uA, average. About 400uA and rises as cap discharges
-        sleep_disable();
-        sei();
-        count += 1;
-    }
+#if !defined(SLEEP_WITH_TIMER2)
+        // this requires 1uF and 10M in parallel between pins 3 & 4
+        while (count < SleepLoopTimerCount)
+        {
+            power_timer0_enable(); // delay() requires this
+            pinMode(TIMER_RC_PIN, OUTPUT);
+            digitalWrite(TIMER_RC_PIN, HIGH);
+            delay(10); // Charge the 1uF
+            cli();
+            power_timer0_disable(); // timer0 powered down again
+            attachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN), sleepPinInterrupt, LOW);
+            set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+            pinMode(TIMER_RC_PIN, INPUT);
+            sleep_enable();
+            sleep_bod_disable();
+            sei();
+            sleep_cpu(); // about 300uA, average. About 200uA and rises as cap discharges
+            sleep_disable();
+            sei();
+            count += 1;
+        }
+
 #else
-    power_timer2_enable(); // need this one timer
-    clock_prescale_set(clock_div_256); // slow CPU clock down by 256
-    while (count < Loop10sRCtimerCount)
-    {
-        cli();
-        /* Normal timer operation.*/
-        TCCR2A = 0x00;
+        // this section requires no external hardware, AND has a predictable
+        // sleep time. BUT takes an extra 100 to 200 uA of sleep current
+        power_timer2_enable(); // need this one timer
+        clock_prescale_set(clock_div_256); // slow CPU clock down by 256
+        while (count < SleepLoopTimerCount)
+        {
+            cli();
+            // This code inspired by:
+            // http://donalmorrissey.blogspot.com/2011/11/sleeping-arduino-part-4-wake-up-via.html
+            // ...except that we use TIMER2 instead of TIMER2 so we can go to SLEEP_MODE_PWR_SAVE
+            // instead of SLEEP_MODE_IDLE
+            //
+            // We use clock_prescale_set here (not in the link above) to make up for the fact
+            // that TIMER2 is only 8 bits wide (TIMER1 is 16)
+            //
 
-        /* Clear the timer counter register.
-         * You can pre-load this register with a value in order to
-         * reduce the timeout period, say if you wanted to wake up
-         * ever 4.0 seconds exactly.
-         */
-        TCNT2 = 0x0000;
+            /* Normal timer operation.*/
+            TCCR2A = 0x00;
 
-        /* Configure the prescaler for 1:1024, giving us a
-         * timeout of 1024 * 256 / 8000000 = 32.768 msec
-         */
-        TCCR2B = 0x07; // 1024 prescale
+            /* Clear the timer counter register.
+             * You can pre-load this register with a value in order to
+             * reduce the timeout period, say if you wanted to wake up
+             * ever 4.0 seconds exactly.
+             */
+            TCNT2 = 0x0000;
 
-        /* Enable the timer overlow interrupt. */
-        TIMSK2 = 0x01;
-        TIFR2 = 1; // Clear any current overflow flag
+            /* Configure the prescaler for 1:1024, giving us a
+             * timeout of 1024 * 256 / 8000000 = 32.768 msec
+             */
+            TCCR2B = 0x07; // 1024 prescale
 
-        set_sleep_mode(SLEEP_MODE_PWR_SAVE);
-        sleep_enable();
-        sleep_bod_disable();
-        sei();
-        sleep_cpu();	// 600 uA -- steady
-        sleep_disable();
-        sei();
-        count += 1;
-    }
-    clock_prescale_set(clock_div_1);
+            /* Enable the timer overlow interrupt. */
+            TIMSK2 = 0x01;
+            TIFR2 = 1; // Clear any current overflow flag
+
+            set_sleep_mode(SLEEP_MODE_PWR_SAVE);
+            sleep_enable();
+            sleep_bod_disable();
+            sei();
+            sleep_cpu();	// 400 uA -- steady
+            sleep_disable();
+            sei();
+            count += 1;
+        }
+        clock_prescale_set(clock_div_1);
 #endif
-    power_all_enable();
+
+        power_all_enable();
 
 #if defined(USE_SERIAL)
-    Serial.begin(9600);
-    Serial.print(count, DEC);
-    Serial.println(" wakeup");
+        Serial.begin(9600);
+        Serial.print(count, DEC);
+        Serial.println(" wakeup");
 #endif
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-    radio.SPIon();
+        radio.SPIon();
 #endif
 
-    return count;
+        return count;
+    }
 }
-
