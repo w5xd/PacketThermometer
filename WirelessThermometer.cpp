@@ -87,7 +87,8 @@ public:
 
 	void SPIoff()
 	{
-		// this command drops the idle current by about 100 uA
+		// this command drops the idle current by about 100 uA...maybe
+		// I could not get consistent results. so I left it in
 		writeReg(REG_OPMODE, (readReg(REG_OPMODE) & 0xE3) | RF_OPMODE_SLEEP | RF_OPMODE_LISTENABORT);
 		 _mode = RF69_MODE_STANDBY; // force base class do the write
 		sleep();
@@ -386,6 +387,7 @@ void loop()
     }
 }
 
+//#define SLEEP_WITH_TIMER2
 #if !defined(SLEEP_WITH_TIMER2)
 void sleepPinInterrupt()	// requires 1uF and 10M between two pins
 {
@@ -475,7 +477,7 @@ namespace {
             sleep_enable();
             sleep_bod_disable();
             sei();
-            sleep_cpu();	// 400 uA -- steady
+            sleep_cpu();	// 370 uA -- steady
             sleep_disable();
             sei();
             count += 1;
