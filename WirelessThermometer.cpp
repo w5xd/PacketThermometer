@@ -26,6 +26,9 @@
 #define USE_SERIAL
 #define TELEMETER_BATTERY_V
 
+// Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/20Mohm external parts
+//#define SLEEP_WITH_TIMER2
+
 #if defined(USE_RFM69)
 #include <RFM69.h>
 #include <RFM69registers.h>
@@ -72,7 +75,6 @@ const bool ENCRYPT = true; // Set to "true" to use encryption
 const bool USEACK = true; // Request ACKs or not
 const int RFM69_RESET_PIN = A1;
 const uint8_t GATEWAY_NODEID = 1;
-RadioConfiguration radioConfiguration;
 
 class SleepRFM69 : public RFM69
 {
@@ -113,6 +115,11 @@ public:
 SleepRFM69 radio;
 #endif
 
+#if defined(TELEMETER_BATTERY_V)
+void ResetAnalogReference();
+#endif
+
+RadioConfiguration radioConfiguration;
 unsigned long TimeOfWakeup;
 const unsigned MAX_SLEEP_LOOP_COUNT = 5000; // a couple times per day is minimum check-in interval
 unsigned SleepLoopTimerCount = 30; // approx 10 seconds per Count
@@ -187,10 +194,7 @@ void setup()
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
-    analogReference(INTERNAL);
-    pinMode(BATTERY_PIN, INPUT);
-    analogRead(BATTERY_PIN);
-    delay(10); // let ADC settle
+    ResetAnalogReference();
 #endif
 
     digitalWrite(TIMER_RC_GROUND_PIN, LOW);
@@ -203,7 +207,6 @@ void setup()
     if (eepromLoopCount && eepromLoopCount <= MAX_SLEEP_LOOP_COUNT)
     	SleepLoopTimerCount = eepromLoopCount;
 }
-
 
 /* Power management:
  * For ListenAfterTransmitMsec we stay awake and listen on the radio and Serial.
@@ -244,11 +247,11 @@ void loop()
 {
     unsigned long now = millis();
 
+
+#if defined(USE_SERIAL)
     // Set up a "buffer" for characters that we'll send:
     static char sendbuffer[62];
     static int sendlength = 0;
-
-#if defined(USE_SERIAL)
     // In this section, we'll gather serial characters and
     // send them to the other node if we (1) get a carriage return,
     // or (2) the buffer is full (61 characters).
@@ -387,7 +390,6 @@ void loop()
     }
 }
 
-//#define SLEEP_WITH_TIMER2
 #if !defined(SLEEP_WITH_TIMER2)
 void sleepPinInterrupt()	// requires 1uF and 10M between two pins
 {
@@ -412,8 +414,15 @@ namespace {
         radio.SPIoff();
 #endif
 
-        unsigned count = 0;
+#if defined(TELEMETER_BATTERY_V)
+        analogReference(EXTERNAL); // This sequence drops idle current by 30uA
+        analogRead(BATTERY_PIN); // doesn't shut down the band gap until we USE ADC
+#endif
+
+        // sleep mode power supply current measurements indicate this appears to be redundant
         power_all_disable(); // turn off everything
+
+        unsigned count = 0;
 
 #if !defined(SLEEP_WITH_TIMER2)
         // this requires 1uF and 10M in parallel between pins 3 & 4
@@ -477,7 +486,7 @@ namespace {
             sleep_enable();
             sleep_bod_disable();
             sei();
-            sleep_cpu();	// 370 uA -- steady
+            sleep_cpu();	// 280 uA -- steady without RFM69
             sleep_disable();
             sei();
             count += 1;
@@ -486,6 +495,11 @@ namespace {
 #endif
 
         power_all_enable();
+
+#if defined(TELEMETER_BATTERY_V)
+        ResetAnalogReference();
+#endif
+
 
 #if defined(USE_SERIAL)
         Serial.begin(9600);
@@ -499,4 +513,14 @@ namespace {
 
         return count;
     }
+
+#if defined(TELEMETER_BATTERY_V)
+	void ResetAnalogReference()
+	{
+		analogReference(INTERNAL);
+		pinMode(BATTERY_PIN, INPUT);
+		analogRead(BATTERY_PIN);
+		delay(10); // let ADC settle
+	}
+#endif
 }
