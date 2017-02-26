@@ -368,7 +368,7 @@ void loop()
 
         int whole = (int)temperature;
 
-        sprintf(buf, "Count: %d, Battery: %d, temp: %c%d.%02d", sampleCount++,
+        sprintf(buf, "C:%d, B:%d, T:%c%d.%02d", sampleCount++,
             batt,
             sign, whole,
             (int)(100.f * (temperature - whole)));
