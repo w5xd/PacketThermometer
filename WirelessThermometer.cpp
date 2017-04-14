@@ -18,9 +18,10 @@
 // Uses the RFM69 library by Felix Rusu, LowPowerLab.com
 // Original library: https://www.github.com/lowpowerlab/rfm69
 
-// Include the RFM69 and SPI libraries:
-#define USE_TMP102
+//#define USE_TMP102
 //#define SLEEP_TMP102_ONLY /* for testing only*/
+#define USE_HIH6130
+// Include the RFM69 and SPI libraries:
 #define USE_RFM69
 //#define SLEEP_RFM69_ONLY /* for testing only */
 #define USE_SERIAL
@@ -37,6 +38,8 @@
 #if defined(USE_TMP102)
 #include <Wire.h>
 #include <TMP102Helper.h> // Used to send and receive specific information from our sensor
+#elif defined(USE_HIH6130)
+#include <HIH6130Helper.h>
 #endif
 
 namespace {
@@ -61,6 +64,8 @@ HomeAutomationTools::TMP102 sensor0(0x48); // Initialize sensor at I2C address 0
 //  VCC - 0x49
 //  SDA - 0x4A
 //  SCL - 0x4B
+#elif defined(USE_HIH6130)
+HomeAutomationTools::HIH6130 sensor0;
 #endif
 
 #if defined(USE_RFM69)
@@ -135,6 +140,8 @@ void setup()
     Serial.print(radioConfiguration.NodeId(), DEC);
     Serial.print(" on network ");
     Serial.print(radioConfiguration.NetworkId(), DEC);
+    Serial.print(" frequency ");
+    Serial.print(radioConfiguration.FrequencyBandId(), DEC);
     Serial.println(" ready");
 #endif
 
@@ -246,7 +253,6 @@ namespace {
 void loop()
 {
     unsigned long now = millis();
-
 
 #if defined(USE_SERIAL)
     // Set up a "buffer" for characters that we'll send:
@@ -375,9 +381,56 @@ void loop()
 #if defined(USE_SERIAL)
         Serial.println(buf);
 #endif
+#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
+        radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+#endif
+#elif defined(USE_HIH6130)
+        sensor0.begin();
+        // read temperature data
+        float humidity, temperature;
+        unsigned char stat = sensor0.GetReadings(humidity, temperature);
+        sensor0.end();
+
+#if defined(USE_SERIAL)
+        // Print temperature and alarm state
+        Serial.print("Temperature: ");
+        Serial.print(temperature);
+        Serial.print(" stat: ");
+        Serial.print((int)stat);
+        Serial.print(" Humidity: ");
+        Serial.println(humidity);
+#endif
+
+        int batt(0);
+#if defined(TELEMETER_BATTERY_V)
+        pinMode(BATTERY_PIN, INPUT_PULLUP); // sample the battery
+        batt = analogRead(BATTERY_PIN);
+        pinMode(BATTERY_PIN, INPUT); // turn off battery drain
+#endif
+        char sign = '+';
+        static char buf[64];
+        if (temperature < 0.f){
+            temperature = -temperature;
+            sign = '-';
+        }
+        else if (temperature == 0.f)
+            sign = ' ';
+
+        int whole = (int)temperature;
+        int wholeRh = (int) humidity;
+
+        sprintf(buf, "C:%d, B:%d, T:%c%d.%02d R:%d.%02d", sampleCount++,
+            batt,
+            sign, whole,
+            (int)(100.f * (temperature - whole)),
+			wholeRh,
+			(int)(100.f * (humidity - wholeRh)));
+#if defined(USE_SERIAL)
+        Serial.println(buf);
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
         radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+#endif
 #endif
     }
 
@@ -404,7 +457,8 @@ namespace {
     {
 
 #if defined(USE_SERIAL)
-        Serial.println("sleep");
+        Serial.print("sleep for ");
+        Serial.println(SleepLoopTimerCount);
         Serial.end();// wait for finish and turn off pins before sleep
         pinMode(0, INPUT); // Arduino libraries have a symbolic definition for Serial pins?
         pinMode(1, INPUT);
