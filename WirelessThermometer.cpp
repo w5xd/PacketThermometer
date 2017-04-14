@@ -18,16 +18,21 @@
 // Uses the RFM69 library by Felix Rusu, LowPowerLab.com
 // Original library: https://www.github.com/lowpowerlab/rfm69
 
+// code only supports a TMP102 sensor or HIH6130 but not both
 //#define USE_TMP102
-//#define SLEEP_TMP102_ONLY /* for testing only*/
+// The TMP102 has temperature only, -40C to 100C
 #define USE_HIH6130
+// The HIH6130 has temperature and relative humidity, -20C to 85C
+
+//#define SLEEP_TMP102_ONLY /* for testing only*/
+
 // Include the RFM69 and SPI libraries:
 #define USE_RFM69
 //#define SLEEP_RFM69_ONLY /* for testing only */
 #define USE_SERIAL
 #define TELEMETER_BATTERY_V
 
-// Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/20Mohm external parts
+// Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
 
 #if defined(USE_RFM69)
@@ -66,6 +71,7 @@ HomeAutomationTools::TMP102 sensor0(0x48); // Initialize sensor at I2C address 0
 //  SCL - 0x4B
 #elif defined(USE_HIH6130)
 HomeAutomationTools::HIH6130 sensor0;
+/* The connection is SDA(A4), SCL(A5), VDD and GND to the HIH6130 */
 #endif
 
 #if defined(USE_RFM69)
