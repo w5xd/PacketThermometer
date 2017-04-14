@@ -19,9 +19,9 @@
 // Original library: https://www.github.com/lowpowerlab/rfm69
 
 // code only supports a TMP102 sensor or HIH6130 but not both
-//#define USE_TMP102
+#define USE_TMP102
 // The TMP102 has temperature only, -40C to 100C
-#define USE_HIH6130
+//#define USE_HIH6130
 // The HIH6130 has temperature and relative humidity, -20C to 85C
 
 //#define SLEEP_TMP102_ONLY /* for testing only*/
