@@ -350,7 +350,8 @@ void loop()
     {
         SampledSinceSleep = true;
 
-#if defined(USE_TMP102) && !defined(SLEEP_TMP102_ONLY)
+#if defined(USE_TMP102)
+#if !defined(SLEEP_TMP102_ONLY)
 
         sensor0.begin();
         // read temperature data
@@ -389,6 +390,7 @@ void loop()
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
         radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+#endif
 #endif
 #elif defined(USE_HIH6130)
         sensor0.begin();
