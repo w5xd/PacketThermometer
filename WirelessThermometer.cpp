@@ -427,7 +427,7 @@ void loop()
         int whole = (int)temperature;
         int wholeRh = (int) humidity;
 
-        sprintf(buf, "C:%d, B:%d, T:%c%d.%02d R:%d.%02d", sampleCount++,
+        sprintf(buf, "C:%u, B:%d, T:%c%d.%02d R:%d.%02d", sampleCount++,
             batt,
             sign, whole,
             (int)(100.f * (temperature - whole)),
