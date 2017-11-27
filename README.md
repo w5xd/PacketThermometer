@@ -15,7 +15,7 @@ digital 4. The component values are not critical. A pair of AAA lithium cells
 powered one of these for 9 months (and counting) with SetDelayLoopCount 
 configured such that updates occur about every 11 minutes. A different unit
 configured for 5 minute updates lasted 6 months. AA cells are rated
-to twice the capacity of AAA if 9 months is too frequent.
+to twice the capacity of AAA if 9 month battery changes are too frequent.
 
 A 2.7K resistor is added from A0 to ground for the purpose of 
 telemetering the battery volatage.
