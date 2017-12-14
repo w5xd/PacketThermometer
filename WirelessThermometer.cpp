@@ -518,7 +518,7 @@ namespace {
             cli();
             // This code inspired by:
             // http://donalmorrissey.blogspot.com/2011/11/sleeping-arduino-part-4-wake-up-via.html
-            // ...except that we use TIMER2 instead of TIMER2 so we can go to SLEEP_MODE_PWR_SAVE
+            // ...except that we use TIMER2 instead of TIMER1 so we can go to SLEEP_MODE_PWR_SAVE
             // instead of SLEEP_MODE_IDLE
             //
             // We use clock_prescale_set here (not in the link above) to make up for the fact
