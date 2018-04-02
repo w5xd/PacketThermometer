@@ -11,11 +11,6 @@
 			</arguments>
 		</buildCommand>
 		<buildCommand>
-			<name>io.sloeber.arduino.core.inoToCpp</name>
-			<arguments>
-			</arguments>
-		</buildCommand>
-		<buildCommand>
 			<name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
 			<triggers>clean,full,incremental,</triggers>
 			<arguments>
@@ -37,59 +32,44 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>HomeAutomationTools</name>
-			<type>2</type>
-			<location>C:/dev/Added Plugin Libraries/HomeAutomationTools</location>
-		</link>
-		<link>
-			<name>RFM69</name>
-			<type>2</type>
-			<location>C:/dev/Added Plugin Libraries/RFM69</location>
-		</link>
-		<link>
-			<name>SPIFlash</name>
-			<type>2</type>
-			<location>C:/dev/Added Plugin Libraries/SPIFlash</location>
-		</link>
-		<link>
 			<name>core/core</name>
 			<type>2</type>
-			<location>C:/Users/Wayne.WL7Test/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.15/cores/arduino</location>
+			<locationURI>ECLIPSE_HOME/arduinoPlugin/packages/arduino/hardware/avr/1.6.21/cores/arduino</locationURI>
 		</link>
 		<link>
 			<name>core/variant</name>
 			<type>2</type>
-			<location>C:/Users/Wayne.WL7Test/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.15/variants/eightanaloginputs</location>
+			<locationURI>ECLIPSE_HOME/arduinoPlugin/packages/arduino/hardware/avr/1.6.21/variants/eightanaloginputs</locationURI>
 		</link>
 		<link>
 			<name>libraries/EEPROM</name>
 			<type>2</type>
-			<location>C:/Users/Wayne.WL7Test/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.15/libraries/EEPROM</location>
+			<locationURI>ECLIPSE_HOME/arduinoPlugin/packages/arduino/hardware/avr/1.6.21/libraries/EEPROM</locationURI>
 		</link>
 		<link>
-			<name>libraries/NewPing</name>
+			<name>libraries/RFM69</name>
 			<type>2</type>
-			<locationURI>ECLIPSE_HOME/arduinoPlugin/libraries/NewPing/1.9.0</locationURI>
+			<location>C:/dev/Added-Plugin-Libraries/RFM69</location>
 		</link>
 		<link>
 			<name>libraries/SPI</name>
 			<type>2</type>
-			<location>C:/Users/Wayne.WL7Test/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.15/libraries/SPI</location>
+			<locationURI>ECLIPSE_HOME/arduinoPlugin/packages/arduino/hardware/avr/1.6.21/libraries/SPI</locationURI>
 		</link>
 		<link>
-			<name>libraries/TimerOne</name>
+			<name>libraries/SPIFlash</name>
 			<type>2</type>
-			<locationURI>ECLIPSE_HOME/arduinoPlugin/libraries/TimerOne/1.1.0</locationURI>
+			<location>C:/dev/Added-Plugin-Libraries/SPIFlash</location>
 		</link>
 		<link>
-			<name>libraries/U8glib</name>
+			<name>libraries/TMP102Helper</name>
 			<type>2</type>
-			<locationURI>ECLIPSE_HOME/arduinoPlugin/libraries/U8glib/1.19.1</locationURI>
+			<location>C:/dev/HomeAutomationTools/TMP102Helper</location>
 		</link>
 		<link>
 			<name>libraries/Wire</name>
 			<type>2</type>
-			<location>C:/Users/Wayne.WL7Test/eclipse/cpp-neon/eclipse/arduinoPlugin/packages/arduino/hardware/avr/1.6.15/libraries/Wire</location>
+			<locationURI>ECLIPSE_HOME/arduinoPlugin/packages/arduino/hardware/avr/1.6.21/libraries/Wire</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>
