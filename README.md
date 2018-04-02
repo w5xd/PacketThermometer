@@ -30,5 +30,11 @@ On the Arduinio Mini Pro, 3.3V version, solder jumper SJ1 is removed (which disa
 the on-board volatage regulator and LED.)
 The system is powered with a 2 cell AAA (or AA) lithium battery wired to VCC (not RAW).
 
+To setup the EEPROM off the air (i.e. with the RFM69 not connected) you must
+leave USE_RFM69 undefined because the code that uses the RFM69 but cannot
+find it blocks reading from the serial port.
+
+The required SetFrequencyBand settings are documented in RFM69.h (91 in USA)
+
 
 
