@@ -18,9 +18,9 @@
 // Original library: https://www.github.com/lowpowerlab/rfm69
 
 // code only supports a TMP102 sensor or HIH6130 but not both
-//#define USE_TMP102
+#define USE_TMP102
 // The TMP102 has temperature only, -40C to 100C
-#define USE_HIH6130
+//#define USE_HIH6130
 // The HIH6130 has temperature and relative humidity, -20C to 85C
 
 //#define SLEEP_TMP102_ONLY /* for testing only*/
@@ -147,6 +147,8 @@ void setup()
     Serial.print(radioConfiguration.NetworkId(), DEC);
     Serial.print(" band ");
     Serial.print(radioConfiguration.FrequencyBandId(), DEC);
+    Serial.print(" key ");
+    radioConfiguration.printEncryptionKey(Serial);
     Serial.println(" ready");
 #endif
 
@@ -228,6 +230,11 @@ void setup()
     EEPROM.get(RadioConfiguration::TotalEpromUsed(), eepromLoopCount);
     if (eepromLoopCount && eepromLoopCount <= MAX_SLEEP_LOOP_COUNT)
     	SleepLoopTimerCount = eepromLoopCount;
+
+#if defined(USE_SERIAL)
+    Serial.print("SleepLoopTimerCount = ");
+    Serial.println(SleepLoopTimerCount);
+#endif
 }
 
 /* Power management:
