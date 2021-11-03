@@ -83,7 +83,7 @@ HomeAutomationTools::HIH6130 sensor0;
 const bool ENCRYPT = true; // Set to "true" to use encryption
 // Use ACKnowledge when sending messages (or not):
 const bool USEACK = true; // Request ACKs or not
-const int RFM69_RESET_PIN = A1;
+const int RFM69_RESET_PIN = 9;
 const uint8_t GATEWAY_NODEID = 1;
 
 class SleepRFM69 : public RFM69
@@ -188,8 +188,6 @@ void setup()
 #endif
 
 #if defined(USE_RFM69)
-    //digitalWrite(RFM69_RESET_PIN, LOW);
-    //pinMode(RFM69_RESET_PIN, OUTPUT);
 
 #if !defined(SLEEP_RFM69_ONLY)
     // Initialize the RFM69HCW:
