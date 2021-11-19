@@ -31,6 +31,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SPIFlash}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SparkFun_TMP102_Arduino_Library}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SparkFun_TMP102_Arduino_Library/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/RadioConfiguration}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/HomeAutomationTools}&quot;"/>
 								</option>
 								<inputType id="it.baeyens.arduino.compiler.cpp.sketch.input.1780507674" name="CPP source files" superClass="it.baeyens.arduino.compiler.cpp.sketch.input"/>
 							</tool>
@@ -48,6 +50,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SPIFlash}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SparkFun_TMP102_Arduino_Library}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SparkFun_TMP102_Arduino_Library/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/RadioConfiguration}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/HomeAutomationTools}&quot;"/>
 								</option>
 								<inputType id="it.baeyens.arduino.compiler.c.sketch.input.776100272" name="C Source Files" superClass="it.baeyens.arduino.compiler.c.sketch.input"/>
 							</tool>
