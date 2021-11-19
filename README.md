@@ -16,7 +16,7 @@ pins used. The pin positions on their breakout boards differ.
 Of the sleep options available at compile time in this sketch, the best
 battery life is obtained with a 10M ohm resistor in parallel with a 1uF
 capacitor across digital pins 3 and 4, with the + side of the capacitor on
-digital 4. SMD components of size 1206 are easy enough to solder on. The R can
+digital 3. SMD components of size 1206 are easy enough to solder on. The R can
 go on one side of the board and the C on the other.
 The component values are not critical. A pair of AAA lithium cells
 powered one of these for 9 months (and counting) with SetDelayLoopCount 
@@ -29,6 +29,12 @@ telemetering the battery volatage.
 On the Arduinio Mini Pro, 3.3V version, solder jumper SJ1 is removed (which disables
 the on-board volatage regulator and LED.)
 The system is powered with a 2 cell AAA (or AA) lithium battery wired to VCC (not RAW).
+
+To setup the EEPROM off the air (i.e. with the RFM69 not connected) you must
+leave USE_RFM69 undefined because the code that uses the RFM69 but cannot
+find it blocks reading from the serial port.
+
+The required SetFrequencyBand settings are documented in RFM69.h (91 in USA)
 
 
 

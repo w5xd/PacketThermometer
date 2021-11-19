@@ -1,4 +1,3 @@
-#include "WirelessThermometer.h"
 #include <RadioConfiguration.h>
 #include <SPI.h>
 #include <EEPROM.h>
@@ -30,7 +29,7 @@
 #define USE_RFM69
 //#define SLEEP_RFM69_ONLY /* for testing only */
 #define USE_SERIAL
-#define TELEMETER_BATTERY_V
+//#define TELEMETER_BATTERY_V
 
 // Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
@@ -42,9 +41,9 @@
 
 #if defined(USE_TMP102)
 #include <Wire.h>
-#include <TMP102Helper.h> // Used to send and receive specific information from our sensor
+#include "TMP102Helper.h" // Used to send and receive specific information from our sensor
 #elif defined(USE_HIH6130)
-#include <HIH6130Helper.h>
+#include "HIH6130Helper.h"
 #endif
 
 namespace {
@@ -146,8 +145,10 @@ void setup()
     Serial.print(radioConfiguration.NodeId(), DEC);
     Serial.print(" on network ");
     Serial.print(radioConfiguration.NetworkId(), DEC);
-    Serial.print(" frequency ");
+    Serial.print(" band ");
     Serial.print(radioConfiguration.FrequencyBandId(), DEC);
+    Serial.print(" key ");
+    radioConfiguration.printEncryptionKey(Serial);
     Serial.println(" ready");
 #endif
 
@@ -192,8 +193,18 @@ void setup()
 
 #if !defined(SLEEP_RFM69_ONLY)
     // Initialize the RFM69HCW:
-    radio.initialize(radioConfiguration.FrequencyBandId(),
+    auto ok = radio.initialize(radioConfiguration.FrequencyBandId(),
         radioConfiguration.NodeId(), radioConfiguration.NetworkId());
+#if defined(USE_SERIAL)
+    Serial.println(ok ? "Radio init OK" : "Radio init failed");
+    if (ok)
+    {
+        uint32_t freq;
+        if (radioConfiguration.FrequencyKHz(freq))
+            radio.setFrequency(1000*freq);
+        Serial.print("Freq= "); Serial.print(radio.getFrequency()/1000); Serial.println(" KHz");
+    }
+#endif   
 
     radio.setHighPower(); // Always use this for RFM69HCW
     // Turn on encryption if desired:
@@ -219,6 +230,11 @@ void setup()
     EEPROM.get(RadioConfiguration::TotalEpromUsed(), eepromLoopCount);
     if (eepromLoopCount && eepromLoopCount <= MAX_SLEEP_LOOP_COUNT)
     	SleepLoopTimerCount = eepromLoopCount;
+
+#if defined(USE_SERIAL)
+    Serial.print("SleepLoopTimerCount = ");
+    Serial.println(SleepLoopTimerCount);
+#endif
 }
 
 /* Power management:
@@ -366,6 +382,7 @@ void loop()
 
         int batt(0);
 #if defined(TELEMETER_BATTERY_V)
+        // 10K to VCC and (wired on board) 2.7K to ground
         pinMode(BATTERY_PIN, INPUT_PULLUP); // sample the battery
         batt = analogRead(BATTERY_PIN);
         pinMode(BATTERY_PIN, INPUT); // turn off battery drain
