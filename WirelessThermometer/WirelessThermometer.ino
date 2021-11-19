@@ -130,6 +130,7 @@ void ResetAnalogReference();
 #endif
 
 RadioConfiguration radioConfiguration;
+bool enableRadio = false;
 unsigned long TimeOfWakeup;
 const unsigned MAX_SLEEP_LOOP_COUNT = 5000; // a couple times per day is minimum check-in interval
 unsigned SleepLoopTimerCount = 30; // approx 10 seconds per Count
@@ -191,12 +192,18 @@ void setup()
 
 #if !defined(SLEEP_RFM69_ONLY)
     // Initialize the RFM69HCW:
-    auto ok = radio.initialize(radioConfiguration.FrequencyBandId(),
-        radioConfiguration.NodeId(), radioConfiguration.NetworkId());
+    auto nodeId = radioConfiguration.NodeId();
+    auto networkId = radioConfiguration.NetworkId();
+    auto fbId = radioConfiguration.FrequencyBandId();
+    auto ok = nodeId != 0xff &&
+            networkId != 0xff &&
+            fbId != 0xff &&
+            radio.initialize(fbId, nodeId, networkId);
 #if defined(USE_SERIAL)
     Serial.println(ok ? "Radio init OK" : "Radio init failed");
     if (ok)
     {
+        enableRadio = true;
         uint32_t freq;
         if (radioConfiguration.FrequencyKHz(freq))
             radio.setFrequency(1000*freq);
@@ -310,6 +317,7 @@ void loop()
                 Serial.print(sendbuffer);
                 Serial.println(" command accepted for radio");
             }
+            Serial.println("ready");
             sendlength = 0; // reset the packet
         }
     }
@@ -404,7 +412,8 @@ void loop()
         Serial.println(buf);
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+        if (enableRadio)
+            radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
 #endif
 #elif defined(USE_HIH6130)
@@ -452,7 +461,8 @@ void loop()
         Serial.println(buf);
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+        if (enableRadio)
+            radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
 #endif
     }
