@@ -6,8 +6,8 @@
 #include <avr/power.h>
 
 // SparkFun's part numbers are:
-// 915MHz: https://www.sparkfun.com/products/12775
-// 434MHz: https://www.sparkfun.com/products/12823
+// 915MHz: https://www.sparkfun.com/products/12775 (or to SMD mount: https://www.sparkfun.com/products/13909)
+// 434MHz: https://www.sparkfun.com/products/12823 (SMD part: https://www.sparkfun.com/products/13910)
 
 // Parts of the code in this sketch are taken from these sparkfun pages,
 // as are all the wiring instructions:
@@ -15,12 +15,12 @@
 // https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide
 
 // Uses the RFM69 library by Felix Rusu, LowPowerLab.com
-// Original library: https://www.github.com/lowpowerlab/rfm69
+// Original library: https://github.com/LowPowerLab/RFM69
 
 // code only supports a TMP102 sensor or HIH6130 but not both
-#define USE_TMP102
+//#define USE_TMP102
 // The TMP102 has temperature only, -40C to 100C
-//#define USE_HIH6130
+#define USE_HIH6130
 // The HIH6130 has temperature and relative humidity, -20C to 85C
 
 //#define SLEEP_TMP102_ONLY /* for testing only*/
@@ -29,7 +29,7 @@
 #define USE_RFM69
 //#define SLEEP_RFM69_ONLY /* for testing only */
 #define USE_SERIAL
-//#define TELEMETER_BATTERY_V
+#define TELEMETER_BATTERY_V
 
 // Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
@@ -83,7 +83,7 @@ HomeAutomationTools::HIH6130 sensor0;
 const bool ENCRYPT = true; // Set to "true" to use encryption
 // Use ACKnowledge when sending messages (or not):
 const bool USEACK = true; // Request ACKs or not
-const int RFM69_RESET_PIN = A1;
+const int RFM69_RESET_PIN = 9;
 const uint8_t GATEWAY_NODEID = 1;
 
 class SleepRFM69 : public RFM69
@@ -130,6 +130,7 @@ void ResetAnalogReference();
 #endif
 
 RadioConfiguration radioConfiguration;
+bool enableRadio = false;
 unsigned long TimeOfWakeup;
 const unsigned MAX_SLEEP_LOOP_COUNT = 5000; // a couple times per day is minimum check-in interval
 unsigned SleepLoopTimerCount = 30; // approx 10 seconds per Count
@@ -188,17 +189,21 @@ void setup()
 #endif
 
 #if defined(USE_RFM69)
-    //digitalWrite(RFM69_RESET_PIN, LOW);
-    //pinMode(RFM69_RESET_PIN, OUTPUT);
 
 #if !defined(SLEEP_RFM69_ONLY)
     // Initialize the RFM69HCW:
-    auto ok = radio.initialize(radioConfiguration.FrequencyBandId(),
-        radioConfiguration.NodeId(), radioConfiguration.NetworkId());
+    auto nodeId = radioConfiguration.NodeId();
+    auto networkId = radioConfiguration.NetworkId();
+    auto fbId = radioConfiguration.FrequencyBandId();
+    auto ok = nodeId != 0xff &&
+            networkId != 0xff &&
+            fbId != 0xff &&
+            radio.initialize(fbId, nodeId, networkId);
 #if defined(USE_SERIAL)
     Serial.println(ok ? "Radio init OK" : "Radio init failed");
     if (ok)
     {
+        enableRadio = true;
         uint32_t freq;
         if (radioConfiguration.FrequencyKHz(freq))
             radio.setFrequency(1000*freq);
@@ -208,7 +213,6 @@ void setup()
 
     radio.setHighPower(); // Always use this for RFM69HCW
     // Turn on encryption if desired:
-
     if (ENCRYPT)
         radio.encrypt(radioConfiguration.EncryptionKey());
 #else
@@ -312,6 +316,7 @@ void loop()
                 Serial.print(sendbuffer);
                 Serial.println(" command accepted for radio");
             }
+            Serial.println("ready");
             sendlength = 0; // reset the packet
         }
     }
@@ -406,7 +411,8 @@ void loop()
         Serial.println(buf);
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+        if (enableRadio)
+            radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
 #endif
 #elif defined(USE_HIH6130)
@@ -454,7 +460,8 @@ void loop()
         Serial.println(buf);
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+        if (enableRadio)
+            radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
 #endif
     }
