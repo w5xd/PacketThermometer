@@ -14,56 +14,77 @@
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
 				<configuration artifactName="${ProjName}" buildProperties="" description="" id="it.baeyens.arduino.core.toolChain.release.453919159" name="Release" parent="org.eclipse.cdt.build.core.emptycfg">
 					<folderInfo id="it.baeyens.arduino.core.toolChain.release.453919159.438539441" name="/" resourcePath="">
-						<toolChain id="it.baeyens.arduino.core.toolChain.release.1897611516" name="Arduino Toolchain" superClass="it.baeyens.arduino.core.toolChain.release">
-							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="it.baeyens.arduino.targetplatform.1546726039" name="Arduino Target" osList="all" superClass="it.baeyens.arduino.targetplatform"/>
-							<builder buildPath="${workspace_loc:/WirelessThermometer}/Release" id="it.baeyens.arduino.sketch.builder.466524019" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Arduino sketch builder" superClass="it.baeyens.arduino.sketch.builder"/>
-							<tool id="it.baeyens.arduino.tool.sketch.compiler.cpp.176559768" name="Arduino C++ Compiler" superClass="it.baeyens.arduino.tool.sketch.compiler.cpp">
-								<option id="it.baeyens.arduino.compiler.cpp.sketch.option.incpath.1898865719" name="Include Paths (-I)" superClass="it.baeyens.arduino.compiler.cpp.sketch.option.incpath" valueType="includePath">
+						<toolChain id="io.sloeber.core.toolChain.release.101400980" name="Arduino Toolchain (Sloeber edition)" superClass="io.sloeber.core.toolChain.release">
+							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="io.sloeber.targetplatform.1081776826" name="Arduino Target" osList="all" superClass="io.sloeber.targetplatform"/>
+							<builder buildPath="${workspace_loc:/WirelessThermometer}/Release" id="io.sloeber.sketch.builder.1823400487" keepEnvironmentInBuildfile="false" name="Arduino sketch builder" superClass="io.sloeber.sketch.builder"/>
+							<tool id="io.sloeber.tool.sketch.compiler.cpp.1527634223" name="Arduino C++ Compiler" superClass="io.sloeber.tool.sketch.compiler.cpp">
+								<option id="io.sloeber.compiler.cpp.sketch.option.incpath.1883353813" name="Include Paths (-I)" superClass="io.sloeber.compiler.cpp.sketch.option.incpath" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/core/core}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/core/variant}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/RFM69}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/EEPROM}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/EEPROM/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/SPI}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/SPI/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/Wire}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/Wire/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/EEPROM}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/EEPROM/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SPIFlash}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SparkFun_TMP102_Arduino_Library}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SparkFun_TMP102_Arduino_Library/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/RadioConfiguration}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/NewPing}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/NewPing/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/TimerOne}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/U8glib}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/U8glib/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/HomeAutomationTools}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/RFM69}&quot;"/>
 								</option>
-								<inputType id="it.baeyens.arduino.compiler.cpp.sketch.input.1780507674" name="CPP source files" superClass="it.baeyens.arduino.compiler.cpp.sketch.input"/>
+								<inputType id="io.sloeber.compiler.cpp.sketch.input.867000108" name="CPP source files" superClass="io.sloeber.compiler.cpp.sketch.input"/>
 							</tool>
-							<tool id="it.baeyens.arduino.tool.compiler.c.279268073" name="Arduino C Compiler" superClass="it.baeyens.arduino.tool.compiler.c">
-								<option id="it.baeyens.arduino.compiler.c.sketch.option.incpath.479949842" name="Include Paths (-I)" superClass="it.baeyens.arduino.compiler.c.sketch.option.incpath" valueType="includePath">
+							<tool id="io.sloeber.tool.compiler.c.844930759" name="Arduino C Compiler" superClass="io.sloeber.tool.compiler.c">
+								<option id="io.sloeber.compiler.c.sketch.option.incpath.876848915" name="Include Paths (-I)" superClass="io.sloeber.compiler.c.sketch.option.incpath" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/core/core}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/core/variant}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/RFM69}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/EEPROM}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/EEPROM/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/SPI}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/SPI/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/Wire}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/Wire/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/NewPing}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/NewPing/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/TimerOne}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/U8glib}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/U8glib/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/HomeAutomationTools}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/RFM69}&quot;"/>
+								</option>
+								<inputType id="io.sloeber.compiler.c.sketch.input.1323081837" name="C Source Files" superClass="io.sloeber.compiler.c.sketch.input"/>
+							</tool>
+							<tool id="io.sloeber.tool.sketch.compiler.s.1045406705" name="Arduino Assembler" superClass="io.sloeber.tool.sketch.compiler.s">
+								<option id="io.sloeber.compiler.asm.sketch.option.incpath.466743880" name="Include Paths (-I)" superClass="io.sloeber.compiler.asm.sketch.option.incpath" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/core/core}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/core/variant}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/EEPROM}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/EEPROM/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SPIFlash}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SparkFun_TMP102_Arduino_Library}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/SparkFun_TMP102_Arduino_Library/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/RadioConfiguration}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/SPI}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/SPI/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/Wire}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/Wire/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/NewPing}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/NewPing/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/TimerOne}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/U8glib}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/libraries/U8glib/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/HomeAutomationTools}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/WirelessThermometer/RFM69}&quot;"/>
 								</option>
-								<inputType id="it.baeyens.arduino.compiler.c.sketch.input.776100272" name="C Source Files" superClass="it.baeyens.arduino.compiler.c.sketch.input"/>
+								<inputType id="io.sloeber.compiler.S.sketch.input.1240419386" name="Assembly source files" superClass="io.sloeber.compiler.S.sketch.input"/>
 							</tool>
-							<tool id="it.baeyens.arduino.tool.sketch.compiler.s.1981685224" name="Arduino Assembler" superClass="it.baeyens.arduino.tool.sketch.compiler.s"/>
-							<tool id="it.baeyens.arduino.tool.ar.1989521171" name="Arduino archiver" superClass="it.baeyens.arduino.tool.ar"/>
-							<tool id="it.baeyens.arduino.tool.combine.1910606583" name="Arduino combiner" superClass="it.baeyens.arduino.tool.combine"/>
-							<tool id="it.baeyens.arduino.tool.objcopy.eep.1151716088" name="Arduino tool Create eeprom" superClass="it.baeyens.arduino.tool.objcopy.eep"/>
-							<tool id="it.baeyens.arduino.tool.size.946535782" name="Arduino tool Print Size" superClass="it.baeyens.arduino.tool.size"/>
+							<tool id="io.sloeber.tool.ar.1412080924" name="Arduino archiver" superClass="io.sloeber.tool.ar"/>
+							<tool id="io.sloeber.tool.combine.1103312731" name="Arduino combiner" superClass="io.sloeber.tool.combine"/>
+							<tool id="io.sloeber.tool.objcopy.eep.1789537282" name="Arduino tool Create eeprom" superClass="io.sloeber.tool.objcopy.eep"/>
+							<tool id="io.sloeber.tool.size.469172919" name="Arduino tool Print Size" superClass="io.sloeber.tool.size"/>
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries**/._*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name=""/>
+						<entry excluding="libraries/TimerOne/config|libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries**/._*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -79,4 +100,5 @@
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>
