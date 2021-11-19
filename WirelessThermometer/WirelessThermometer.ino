@@ -6,8 +6,8 @@
 #include <avr/power.h>
 
 // SparkFun's part numbers are:
-// 915MHz: https://www.sparkfun.com/products/12775
-// 434MHz: https://www.sparkfun.com/products/12823
+// 915MHz: https://www.sparkfun.com/products/12775 (or to SMD mount: https://www.sparkfun.com/products/13909)
+// 434MHz: https://www.sparkfun.com/products/12823 (SMD part: https://www.sparkfun.com/products/13910)
 
 // Parts of the code in this sketch are taken from these sparkfun pages,
 // as are all the wiring instructions:
@@ -15,7 +15,7 @@
 // https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide
 
 // Uses the RFM69 library by Felix Rusu, LowPowerLab.com
-// Original library: https://www.github.com/lowpowerlab/rfm69
+// Original library: https://github.com/LowPowerLab/RFM69
 
 // code only supports a TMP102 sensor or HIH6130 but not both
 //#define USE_TMP102
@@ -213,7 +213,6 @@ void setup()
 
     radio.setHighPower(); // Always use this for RFM69HCW
     // Turn on encryption if desired:
-
     if (ENCRYPT)
         radio.encrypt(radioConfiguration.EncryptionKey());
 #else
