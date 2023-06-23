@@ -46,6 +46,8 @@
 #include "HIH6130Helper.h"
 #endif
 
+#define VERSION_STRING "REV 10"
+
 namespace {
 const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
 const int TIMER_RC_GROUND_PIN = 4;
@@ -142,6 +144,13 @@ void setup()
     // Open a serial port so we can send keystrokes to the module:
 
     Serial.begin(9600);
+
+#if defined(USE_TMP102)
+    Serial.println("PacketThermometer " VERSION_STRING " TMP102");
+#elif defined(USE_HIH6130)
+    Serial.println("PacketThermometer " VERSION_STRING " HIH6130");
+#endif
+
     Serial.print("Node ");
     Serial.print(radioConfiguration.NodeId(), DEC);
     Serial.print(" on network ");
