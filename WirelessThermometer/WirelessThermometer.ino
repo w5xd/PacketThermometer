@@ -12,18 +12,18 @@
 // Parts of the code in this sketch are taken from these sparkfun pages,
 // as are all the wiring instructions:
 // https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide
-// https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide
 
 // Uses the RFM69 library by Felix Rusu, LowPowerLab.com
 // Original library: https://github.com/LowPowerLab/RFM69
 
-// code only supports a TMP102 sensor or HIH6130 but not both
+// code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
 //#define USE_TMP102
-// The TMP102 has temperature only, -40C to 100C
-#define USE_HIH6130
-// The HIH6130 has temperature and relative humidity, -20C to 85C
+//#define USE_HIH6130
+#define USE_TMP175
+//#define USE_SI7021
 
-//#define SLEEP_TMP102_ONLY /* for testing only*/
+// The TMP102 has temperature only, -40C to 100C
+// The HIH6130 has temperature and relative humidity, -20C to 85C
 
 // Include the RFM69 and SPI libraries:
 #define USE_RFM69
@@ -39,14 +39,16 @@
 #include <RFM69registers.h>
 #endif
 
-#if defined(USE_TMP102)
 #include <Wire.h>
-#include "TMP102Helper.h" // Used to send and receive specific information from our sensor
-#elif defined(USE_HIH6130)
+
+#if defined(USE_HIH6130)
 #include "HIH6130Helper.h"
 #endif
+#if defined(USE_TMP175) || defined(USE_TMP102)
+#include "Tmp175.h"
+#endif
 
-#define VERSION_STRING "REV 10"
+#define VERSION_STRING "REV 11"
 
 namespace {
 const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
@@ -57,22 +59,16 @@ const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, lis
 const unsigned long NormalListenAfterTransmit = 300;// after TX, go to RX for this long
 
 #if defined(USE_TMP102)
-// Connections to TMP102
-// VCC = 3.3V
-// GND = GND
-// SDA = A4
-// SCL = A5
-const int ALERT_PIN = A3;
-
-HomeAutomationTools::TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
-// Sensor address can be changed with an external jumper to:
-// ADD0 - Address
-//  VCC - 0x49
-//  SDA - 0x4A
-//  SCL - 0x4B
-#elif defined(USE_HIH6130)
+// The TMP102 is documented to be backwards compatible with the TMP75.
+TMP175 tmp102(0x49, 30); /* PCB layout puts tmp102 at 0x49. TMP102 breakout board gives 0x48*/
+#endif
+#if defined(USE_HIH6130)
 HomeAutomationTools::HIH6130 sensor0;
-/* The connection is SDA(A4), SCL(A5), VDD and GND to the HIH6130 */
+#endif
+#if defined(USE_TMP175)
+TMP175 tmp175(0x37); /* PCB layout puts tmp175 at 0x37*/
+#endif
+#if defined(USE_SI7021)
 #endif
 
 #if defined(USE_RFM69)
@@ -149,6 +145,10 @@ void setup()
     Serial.println("PacketThermometer " VERSION_STRING " TMP102");
 #elif defined(USE_HIH6130)
     Serial.println("PacketThermometer " VERSION_STRING " HIH6130");
+#elif defined(USE_TMP175)
+    Serial.println("PacketThermometer " VERSION_STRING " TMP175");
+#elif defined(USE_SI7021)
+    Serial.println("PacketThermometer " VERSION_STRING " SI7021");
 #endif
 
     Serial.print("Node ");
@@ -162,39 +162,15 @@ void setup()
     Serial.println(" ready");
 #endif
 
+    Wire.begin();
+
 #if defined(USE_TMP102)
-    pinMode(ALERT_PIN, INPUT);  // Declare alertPin as an input
-    sensor0.begin();  // Join I2C bus
-    // Initialize sensor0 settings
-    sensor0.setOneShotMode(); // set low power mode
-
-    // These settings are saved in the sensor, even if it loses power
-
-    // set the number of consecutive faults before triggering alarm.
-    // 0-3: 0:1 fault, 1:2 faults, 2:4 faults, 3:6 faults.
-    sensor0.setFault(0);  // Trigger alarm immediately
-
-    // set the polarity of the Alarm. (0:Active LOW, 1:Active HIGH).
-    sensor0.setAlertPolarity(0); // Active LOW
-
-    // set the sensor in Comparator Mode (0) or Interrupt Mode (1).
-    sensor0.setAlertMode(0); // Comparator Mode.
-
-    // set the Conversion Rate (how quickly the sensor gets a new reading)
-    //0-3: 0:0.25Hz, 1:1Hz, 2:4Hz, 3:8Hz
-    sensor0.setConversionRate(2);
-
-    //set Extended Mode.
-    //0:12-bit Temperature(-55C to +128C) 1:13-bit Temperature(-55C to +150C)
-    sensor0.setExtendedMode(0);
-
-    //set T_HIGH, the upper limit to trigger the alert on
-    sensor0.setHighTempC(127); // set T_HIGH in C
-
-    //set T_LOW, the lower limit to shut turn off the alert
-    sensor0.setLowTempC(127); // set T_LOW in C
-
-    sensor0.end();
+    tmp102.setup();  
+#endif
+#if defined(USE_TMP175)
+    tmp175.setup();
+#endif
+#if defined(USE_SI7021)
 #endif
 
 #if defined(USE_RFM69)
@@ -248,11 +224,13 @@ void setup()
     Serial.print("SleepLoopTimerCount = ");
     Serial.println(SleepLoopTimerCount);
 #endif
+
+    Wire.end();
 }
 
 /* Power management:
  * For ListenAfterTransmitMsec we stay awake and listen on the radio and Serial.
- * Then we power down all: temperature sensor, radio and CPU and CPU
+ * Then we power down all: sensor, radio and CPU and CPU
  * sleep using SleepTilNextSample.
  */
 
@@ -378,22 +356,9 @@ void loop()
     static bool SampledSinceSleep = false;
     if (!SampledSinceSleep)
     {
+        static char buf[64];
         SampledSinceSleep = true;
-
-#if defined(USE_TMP102)
-#if !defined(SLEEP_TMP102_ONLY)
-
-        sensor0.begin();
-        // read temperature data
-        float temperature = sensor0.readTempCfromShutdown();
-        sensor0.end();
-
-#if defined(USE_SERIAL)
-        // Print temperature and alarm state
-        Serial.print("Temperature: ");
-        Serial.println(temperature);
-#endif
-
+        Wire.begin();
         int batt(0);
 #if defined(TELEMETER_BATTERY_V)
         // 10K to VCC and (wired on board) 2.7K to ground
@@ -401,21 +366,35 @@ void loop()
         batt = analogRead(BATTERY_PIN);
         pinMode(BATTERY_PIN, INPUT); // turn off battery drain
 #endif
+
+#if defined(USE_TMP102) || defined(USE_TMP175)
+#if defined(USE_TMP102)
+        auto temperature256 = tmp102.finishReadTempCx256();
+#elif defined(USE_TMP175)
+        auto temperature256 = tmp175.finishReadTempCx256();
+#endif
         char sign = '+';
-        static char buf[64];
-        if (temperature < 0.f){
-            temperature = -temperature;
+        if (temperature256 < 0) {
+            temperature256 = -temperature256;
             sign = '-';
         }
-        else if (temperature == 0.f)
+        else if (temperature256 == 0)
             sign = ' ';
 
-        int whole = (int)temperature;
-
+        int whole = temperature256 >> 8;
+        int frac = temperature256 & 0xFF;
+        frac *= 100;
+        frac >>= 7; // range of 0 through 199
+        frac += 5; // round up (away from zero)
+        if (frac >= 200)
+        {
+            whole += 1; // carry
+            frac = 0;
+        }
+        frac >>= 1;
         sprintf(buf, "C:%u, B:%d, T:%c%d.%02d", sampleCount++,
             batt,
-            sign, whole,
-            (int)(100.f * (temperature - whole)));
+            sign, whole, frac);
 #if defined(USE_SERIAL)
         Serial.println(buf);
 #endif
@@ -423,8 +402,7 @@ void loop()
         if (enableRadio)
             radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
-#endif
-#elif defined(USE_HIH6130)
+#elif defined(USE_HIH6130) || defined(USE_SI7021)
         sensor0.begin();
         // read temperature data
         float humidity, temperature;
@@ -441,12 +419,6 @@ void loop()
         Serial.println(humidity);
 #endif
 
-        int batt(0);
-#if defined(TELEMETER_BATTERY_V)
-        pinMode(BATTERY_PIN, INPUT_PULLUP); // sample the battery
-        batt = analogRead(BATTERY_PIN);
-        pinMode(BATTERY_PIN, INPUT); // turn off battery drain
-#endif
         char sign = '+';
         static char buf[64];
         if (temperature < 0.f){
@@ -473,6 +445,7 @@ void loop()
             radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
 #endif
+        Wire.end();
     }
 
     if (now - TimeOfWakeup > ListenAfterTransmitMsec)
@@ -481,6 +454,12 @@ void loop()
         SampledSinceSleep = false;
         TimeOfWakeup = millis();
         ListenAfterTransmitMsec = NormalListenAfterTransmit;
+#if defined(USE_TMP102)
+        tmp102.startReadTemperature();
+#endif
+#if defined(USE_TMP175)
+        tmp175.startReadTemperature();
+#endif
     }
 }
 
@@ -496,10 +475,10 @@ ISR(TIMER2_OVF_vect) {} // do nothing but wake up
 namespace {
     unsigned SleepTilNextSample()
     {
-
 #if defined(USE_SERIAL)
         Serial.print("sleep for ");
         Serial.println(SleepLoopTimerCount);
+        Serial.flush();
         Serial.end();// wait for finish and turn off pins before sleep
         pinMode(0, INPUT); // Arduino libraries have a symbolic definition for Serial pins?
         pinMode(1, INPUT);
@@ -594,7 +573,6 @@ namespace {
 #if defined(TELEMETER_BATTERY_V)
         ResetAnalogReference();
 #endif
-
 
 #if defined(USE_SERIAL)
         Serial.begin(9600);

@@ -20,7 +20,6 @@ namespace HomeAutomationTools {
 
     void HIH6130::begin(void)
     {
-        Wire.begin();  // Join I2C bus
     }
 
     unsigned char HIH6130::GetReadings(float &humidity, float &tempC)
@@ -50,11 +49,6 @@ namespace HomeAutomationTools {
 
     void HIH6130::end()
     {
-        Wire.end();
-        pinMode(PIN_WIRE_SCL, INPUT);
-        digitalWrite(PIN_WIRE_SCL, LOW);
-        pinMode(PIN_WIRE_SDA, INPUT);
-        digitalWrite(PIN_WIRE_SDA, LOW);
     }
 
 
