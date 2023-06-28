@@ -90,6 +90,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WirelessThermometer\HIH6130Helper.h" />
+    <ClInclude Include="WirelessThermometer\Si7021.h" />
     <ClInclude Include="WirelessThermometer\Tmp175.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

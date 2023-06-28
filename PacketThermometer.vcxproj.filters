@@ -30,5 +30,8 @@
     <ClInclude Include="WirelessThermometer\Tmp175.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WirelessThermometer\Si7021.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

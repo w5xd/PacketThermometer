@@ -6,7 +6,6 @@ Based on:
 
 Distributed as-is; no warranty is given.
 ******************************************************************************/
-#include <Arduino.h>
 namespace HomeAutomationTools {
     class HIH6130
     {

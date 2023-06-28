@@ -1,3 +1,17 @@
+/* This sketch is for an Arduino wired to 
+** a) RFM69 radio transceiver
+** b) temperature sensor or combination temperature/humidity sensor
+**
+** This sketch is accompanied in its git repository by a design for a 1.7" by 2.5" PCB.
+** That PCB makes the connections more convenient, and the packaging solid, but its
+** also workable to simply use the sparkfun breakout packaging of the RFM69 and either
+** the TMP102 or the Si7021 and haywire a wireless thermometer.
+**
+** This sketch has compile time #define's for the various i2c sensors. While multiple
+** sensors can be compiled in, the #define's in this sketch arrange for only one of the
+** sensor readings to be telemetered.
+*/
+
 #include <RadioConfiguration.h>
 #include <SPI.h>
 #include <EEPROM.h>
@@ -17,10 +31,10 @@
 // Original library: https://github.com/LowPowerLab/RFM69
 
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
-//#define USE_TMP102
+#define USE_TMP102
 //#define USE_HIH6130
 #define USE_TMP175
-//#define USE_SI7021
+#define USE_SI7021
 
 // The TMP102 has temperature only, -40C to 100C
 // The HIH6130 has temperature and relative humidity, -20C to 85C
@@ -29,7 +43,8 @@
 #define USE_RFM69
 //#define SLEEP_RFM69_ONLY /* for testing only */
 #define USE_SERIAL
-#define TELEMETER_BATTERY_V
+//if a permanent power source is connected, comment out the next line...
+#define TELEMETER_BATTERY_V // ...because the power supply voltage wont ever change.
 
 // Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
@@ -46,6 +61,9 @@
 #endif
 #if defined(USE_TMP175) || defined(USE_TMP102)
 #include "Tmp175.h"
+#endif
+#if defined(USE_SI7021)
+#include "Si7021.h"
 #endif
 
 #define VERSION_STRING "REV 11"
@@ -69,6 +87,7 @@ HomeAutomationTools::HIH6130 sensor0;
 TMP175 tmp175(0x37); /* PCB layout puts tmp175 at 0x37*/
 #endif
 #if defined(USE_SI7021)
+SI7021 si7021;
 #endif
 
 #if defined(USE_RFM69)
@@ -165,10 +184,10 @@ void setup()
     Wire.begin();
 
 #if defined(USE_TMP102)
-    tmp102.setup();  
+    tmp102.startReadTemperature();
 #endif
 #if defined(USE_TMP175)
-    tmp175.setup();
+    tmp175.startReadTemperature();
 #endif
 #if defined(USE_SI7021)
 #endif
@@ -402,25 +421,23 @@ void loop()
         if (enableRadio)
             radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
-#elif defined(USE_HIH6130) || defined(USE_SI7021)
+#endif
+#if defined(USE_HIH6130) || defined(USE_SI7021)
+        {
+        float humidity(0), temperature(0);
+#if defined(USE_HIH6130)
         sensor0.begin();
         // read temperature data
-        float humidity, temperature;
         unsigned char stat = sensor0.GetReadings(humidity, temperature);
         sensor0.end();
-
-#if defined(USE_SERIAL)
-        // Print temperature and alarm state
-        Serial.print("Temperature: ");
-        Serial.print(temperature);
-        Serial.print(" stat: ");
-        Serial.print((int)stat);
-        Serial.print(" Humidity: ");
-        Serial.println(humidity);
+#elif defined(USE_SI7021)
+        si7021.startReadHumidity();
+        humidity = si7021.readHumidity();
+        si7021.startReadTemperature(); 
+        temperature = si7021.readTemperature();
 #endif
 
         char sign = '+';
-        static char buf[64];
         if (temperature < 0.f){
             temperature = -temperature;
             sign = '-';
@@ -444,6 +461,7 @@ void loop()
         if (enableRadio)
             radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
+        }
 #endif
         Wire.end();
     }

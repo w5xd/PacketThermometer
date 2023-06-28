@@ -8,6 +8,7 @@ Original Creation Date: April 29, 2016
 https://github.com/sparkfun/Digital_Temperature_Sensor_Breakout_-_TMP102
 
 ******************************************************************************/
+#include <Arduino.h>
 #include "HIH6130Helper.h"
 #include <Wire.h>
 

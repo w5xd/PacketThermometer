@@ -1,8 +1,9 @@
 This Arduino sketch implements a wireless thermometer.
 
 The hardware configuration is the combination of the RFM69 wireless module
+(<a href='https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide'>https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide</a>)
 and any of several temperature sensors:
-<br/><a href='https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide'>https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide</a>
+<br/>
 
 The devices with positions on the PCB are:
 <ul>
@@ -22,11 +23,12 @@ address 0x40.
 
 Power options
 <ul>
-<li>The circuit is simple and can by haywired without a PCB. Its the builder's choice
+<li>The circuit is simple and can be haywired without a PCB. Its the builder's choice
 <li>The PCB has positions for two AA cells. And the PCB has two hole configurations for
 cell holders. Either one two-cell keystone 2462 holder, or two one-cell keystone 2460 holders.
 <li>Or, a PJ-202A 5.5mm x 2.1mm power jack may be installed, which routes up to 12VDC
-to the regulator on the Pro Mini.
+to the regulator on the Pro Mini. The PCB has holes to accommodate the jack on either
+its top or bottom.
 </ul>
 
 Of the sleep options available at compile time in this sketch, the best
@@ -38,7 +40,7 @@ The component values are not critical. A pair of AAA lithium cells
 powered one of these for 9 months (and counting) with SetDelayLoopCount 
 configured such that updates occur about every 11 minutes. A different unit
 configured for 5 minute updates lasted 6 months. AA cells are rated
-to twice the capacity of AAA if these battery changes are too frequent.
+to about twice the Amp-Hour life of AAA cells.
 
 A 2.7K resistor is added from A0 to ground for the purpose of 
 telemetering the battery volatage.
