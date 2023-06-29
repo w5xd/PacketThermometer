@@ -72,9 +72,7 @@ protected:
     {
         static const uint16_t POLYNOMIAL = 0x131;  // P(x)=x^8+x^5+x^4+1 = 100110001
         uint8_t crc = 0;
-        uint8_t byteCtr;
-
-        for (byteCtr = 0; byteCtr < c; ++byteCtr)
+        for (uint8_t byteCtr = 0; byteCtr < c; ++byteCtr)
         {
             crc ^= (data[byteCtr]);
             for (uint8_t bit = 8; bit > 0; --bit)

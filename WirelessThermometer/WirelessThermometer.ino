@@ -356,10 +356,10 @@ void loop()
 #endif
         // RFM69 ensures trailing zero byte, unless buffer is full...so
         radio.DATA[sizeof(radio.DATA) - 1] = 0; // ...if buffer is full, ignore last byte
-        if (processCommand((const char *)&radio.DATA[0]))
+        if (processCommand((const char*)&radio.DATA[0]))
         {
 #if defined(USE_SERIAL)
-        	Serial.println("Received command accepted");
+            Serial.println("Received command accepted");
 #endif
         }
         if (radio.ACKRequested())
@@ -387,79 +387,81 @@ void loop()
 #endif
 
 #if defined(USE_TMP102) || defined(USE_TMP175)
-#if defined(USE_TMP102)
-        auto temperature256 = tmp102.finishReadTempCx256();
-#elif defined(USE_TMP175)
-        auto temperature256 = tmp175.finishReadTempCx256();
-#endif
-        char sign = '+';
-        if (temperature256 < 0) {
-            temperature256 = -temperature256;
-            sign = '-';
-        }
-        else if (temperature256 == 0)
-            sign = ' ';
-
-        int whole = temperature256 >> 8;
-        int frac = temperature256 & 0xFF;
-        frac *= 100;
-        frac >>= 7; // range of 0 through 199
-        frac += 5; // round up (away from zero)
-        if (frac >= 200)
         {
-            whole += 1; // carry
-            frac = 0;
-        }
-        frac >>= 1;
-        sprintf(buf, "C:%u, B:%d, T:%c%d.%02d", sampleCount++,
-            batt,
-            sign, whole, frac);
+#if defined(USE_TMP102)
+            auto temperature256 = tmp102.finishReadTempCx256();
+#elif defined(USE_TMP175)
+            auto temperature256 = tmp175.finishReadTempCx256();
+#endif
+            char sign = '+';
+            if (temperature256 < 0) {
+                temperature256 = -temperature256;
+                sign = '-';
+            }
+            else if (temperature256 == 0)
+                sign = ' ';
+
+            int whole = temperature256 >> 8;
+            int frac = temperature256 & 0xFF;
+            frac *= 100;
+            frac >>= 7; // range of 0 through 199
+            frac += 5; // round up (away from zero)
+            if (frac >= 200)
+            {
+                whole += 1; // carry
+                frac = 0;
+            }
+            frac >>= 1;
+            sprintf(buf, "C:%u, B:%d, T:%c%d.%02d", sampleCount++,
+                batt,
+                sign, whole, frac);
 #if defined(USE_SERIAL)
-        Serial.println(buf);
+            Serial.println(buf);
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        if (enableRadio)
-            radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+            if (enableRadio)
+                radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
+        }
 #endif
 #if defined(USE_HIH6130) || defined(USE_SI7021)
         {
-        float humidity(0), temperature(0);
+            float humidity(0), temperature(0);
 #if defined(USE_HIH6130)
-        sensor0.begin();
-        // read temperature data
-        unsigned char stat = sensor0.GetReadings(humidity, temperature);
-        sensor0.end();
+            sensor0.begin();
+            // read temperature data
+            unsigned char stat = sensor0.GetReadings(humidity, temperature);
+            sensor0.end();
 #elif defined(USE_SI7021)
-        si7021.startReadHumidity();
-        humidity = si7021.readHumidity();
-        si7021.startReadTemperature(); 
-        temperature = si7021.readTemperature();
+            si7021.startReadTemperature();
+            temperature = si7021.readTemperature();
+            si7021.startReadHumidity();
+            humidity = si7021.readHumidity();
 #endif
 
-        char sign = '+';
-        if (temperature < 0.f){
-            temperature = -temperature;
-            sign = '-';
-        }
-        else if (temperature == 0.f)
-            sign = ' ';
+            char sign = '+';
+            if (temperature < 0.f) {
+                temperature = -temperature;
+                sign = '-';
+            }
+            else if (temperature == 0.f)
+                sign = ' ';
 
-        int whole = (int)temperature;
-        int wholeRh = (int) humidity;
+            int whole = (int)temperature;
+            int wholeRh = (int)humidity;
 
-        sprintf(buf, "C:%u, B:%d, T:%c%d.%02d R:%d.%02d", sampleCount++,
-            batt,
-            sign, whole,
-            (int)(100.f * (temperature - whole)),
-			wholeRh,
-			(int)(100.f * (humidity - wholeRh)));
+            sprintf(buf, "C:%u, B:%d, T:%c%d.%02d R:%d.%02d", sampleCount++,
+                batt,
+                sign, whole,
+                (int)(100.f * (temperature - whole)),
+                wholeRh,
+                (int)(100.f * (humidity - wholeRh)));
 #if defined(USE_SERIAL)
-        Serial.println(buf);
+            Serial.println(buf);
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        if (enableRadio)
-            radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+            if (enableRadio)
+                radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
 #endif
         }
 #endif
