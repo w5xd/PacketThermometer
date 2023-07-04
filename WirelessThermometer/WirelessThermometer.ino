@@ -31,10 +31,10 @@
 // Original library: https://github.com/LowPowerLab/RFM69
 
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
-//#define USE_TMP102
+#define USE_TMP102
 //#define USE_HIH6130
 //#define USE_TMP175
-#define USE_SI7021
+//#define USE_SI7021
 
 // The TMP102 has temperature only, -40C to 100C
 // The HIH6130 has temperature and relative humidity, -20C to 85C
@@ -335,7 +335,7 @@ void loop()
     // In this section, we'll check with the RFM69HCW to see
     // if it has received any packets:
 
-    if (radio.receiveDone()) // Got one!
+    if (enableRadio && radio.receiveDone()) // Got one!
     {
         // Print out the information:
         TimeOfWakeup = now; // extend sleep timer
@@ -507,7 +507,8 @@ namespace {
 #endif
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        radio.SPIoff();
+        if (enableRadio)
+            radio.SPIoff();
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
@@ -603,7 +604,8 @@ namespace {
 #endif
 
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        radio.SPIon();
+        if (enableRadio)
+            radio.SPIon();
 #endif
 
         return count;
