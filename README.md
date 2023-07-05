@@ -12,14 +12,22 @@ The pin hookups are the same for any sensor: GND, VCC (3.3V), SDA, SCL are the o
 pins used. The pin positions on their breakout boards differ.</li>
 <li>TMP102. Its SMD board layout puts it at i2c address 0x49.
 <a href='https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide'>https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide.</a>
+The sparkfun breakout board wires the i2c address pin at 0x48.
 <li>HIH6131, which measures humidity as well as temperature. The PCB layout puts it at i2c 0x27.
 <a href='https://www.sparkfun.com/products/11295'>HIH6130</a>
 has
 humidity in addition to temperature, but is limited to -20C to 85C.</li>
 <li>Si7021, which measures humidity and temperature. It is fixed at i2c 
 address 0x40.
-<li>TMP175. Temperature only. i2c address 0x37
+<li>TMP175. Temperature only. PCB leaves all address pins floating, therefore i2c address 0x37
 </ul>
+
+PCB assembly
+
+While the PCB has multiple positions for placing sensors, the sketch only reports one of them.
+The board position for the TMP102 accommodates that chip's 0.5mm lead spacing. That small spacing
+is challenging to hand assemble. I succeeded on two boards, but in both cases, the first trip
+through the SMD oven resulted in one or more leads not connected.
 
 Power options
 <ul>
@@ -46,10 +54,15 @@ A 2.7K resistor is added from A0 to ground for the purpose of
 telemetering the battery volatage.
 On the Arduinio Mini Pro, 3.3V version, solder jumper SJ1 is removed which disables
 the on-board volatage regulator and LED.
-The system is powered with a 2 cell AAA (or AA) lithium battery wired to VCC (not RAW).
+The system is powered with a 2 cell AA (or AAA) lithium battery wired to VCC (not RAW).
 
 The required SetFrequencyBand settings are documented in RFM69.h (91 in USA). The Arduino
 can be programmed through either its serial interface or the ISP pins on the PCB. But
 the RFM69 configuration can only be accomplished through the Arduino's serial interface. 
+
+Cover
+
+The CAD directory has a 3D model for a one-piece enclosure that covers the arduino, but leaves the
+battery pack exposed.
 
 

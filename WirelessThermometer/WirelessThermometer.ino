@@ -78,7 +78,7 @@ namespace {
 
 #if defined(USE_TMP102)
 // The TMP102 is documented to be backwards compatible with the TMP75.
-    TMP175 tmp102(0x49, 30); /* PCB layout puts tmp102 at 0x49. TMP102 breakout board gives 0x48*/
+    TMP175 tmp102(0x48, 30); /* PCB layout puts tmp102 at 0x49. TMP102 breakout board gives 0x48*/
 #endif
 #if defined(USE_HIH6130)
     HomeAutomationTools::HIH6130 sensor0;
@@ -481,6 +481,8 @@ void loop()
 #endif
 #if defined(USE_TMP175)
         tmp175.startReadTemperature();
+#endif
+#if defined(USE_SI7021)
 #endif
     }
 }

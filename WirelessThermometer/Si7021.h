@@ -6,6 +6,7 @@ public:
     SI7021() : MsecWhenStarted(millis())
     {}
 
+
     void startReadHumidity() // by definitions, start T and RH both. But T cannot be read with CRC8
     {
         Wire.beginTransmission(I2C_ADDR);
@@ -27,8 +28,7 @@ public:
         uint16_t raw = read();
         if (raw == static_cast<uint16_t>(-1))
             return -1;
-        raw &= ~0xFF;
-        return -6.0f + 125.f * raw / 65536.f; 
+        return  125.f * static_cast<float>(raw) / 65536.f -6.0f; 
     }
 
     float readTemperature()
@@ -36,8 +36,7 @@ public:
         uint16_t raw = read();
         if (raw == static_cast<uint16_t>(-1))
             return -999.f;
-        raw &= ~3;	
-        return -46.85f + 175.72f / 65536.f * raw;
+        return  (175.72f / 65536.f) * static_cast<float>(raw) - 46.85f;
     }
 
 protected:
@@ -56,8 +55,15 @@ protected:
                 data[0] = Wire.read();
                 data[1] = Wire.read();
                 unsigned char crc = Wire.read();
-                if (crc == crc8(data, sizeof(data)))
-                    return (data[0] << 8) | data[0];
+                unsigned char calc = crc8(data, sizeof(data));
+#if 0
+                Serial.print("CRC: 0x");
+                Serial.print((int)crc, HEX);
+                Serial.print(" 0x");
+                Serial.println((int)calc, HEX);
+#endif
+                if (crc == calc)
+                    return (static_cast<uint16_t>(data[0]) << 8) | data[0];
             }
             else
             {
@@ -85,6 +91,7 @@ protected:
     }
 
     enum Commands { MEASURE_RH = 0xF5, MEASURE_T =  0xF3,  // These are not the Hold Master Mode
+        WRITE_USER_REG = 0xE6,
         I2C_ADDR = 0x40, // Part is fixed at 0x40
         MEASURE_MSEC = 12,
         READ_BYTES = 3,
