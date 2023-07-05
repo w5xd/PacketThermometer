@@ -1,20 +1,50 @@
 This Arduino sketch implements a wireless thermometer.
 
 The hardware configuration is the combination of the RFM69 wireless module
-and TMP102 temperature sensor:
-<br/>https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide
-<br/>https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide.
+(<a href='https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide'>https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide</a>)
+and any of several temperature sensors:
+<br/>
 
-HIH6130 support instead of TMP102 is a compile-time option. The 
+The devices with positions on the PCB are:
+<ul>
+<li>There are three header pin outs on the board. 
+The pin hookups are the same for any sensor: GND, VCC (3.3V), SDA, SCL are the only
+pins used. The pin positions on the various Sparkfun breakout boards differ, which
+is why there are several hole patterns on the PCB for headers</li>
+<li>TMP102. Its SMD board layout puts it at i2c address 0x49.
+<a href='https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide'>https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide.</a>
+The sparkfun breakout board wires the i2c address pin at 0x48.
+<li>HIH6131, measures humidity as well as temperature. The PCB layout puts it at i2c 0x27.
 <a href='https://www.sparkfun.com/products/11295'>HIH6130</a>
 has
-humidity in addition to temperature, but is limited to -20C to 85C.
+humidity in addition to temperature, but is limited to -20C to 85C.</li>
+<li>Si7021, measures humidity and temperature. It is fixed at i2c 
+address 0x40. It has a rather coarse temperature readout--about 1 degree Farenheit resolution
+when set to its default 14 bit temperature digitization.
+<li>TMP175. Temperature only. PCB leaves all address pins floating, therefore i2c address 0x37
+</ul>
 
-The pin hookups are the same for either sensor: GND, VCC (3.3V), SDA, SCL are the only
-pins used. The pin positions on their breakout boards differ.
+PCB assembly
+
+While the PCB has multiple positions for placing sensors, the sketch only reports one of them.
+The board position for the TMP102 accommodates that chip's 0.5mm lead spacing. That small spacing
+is challenging to hand assemble. I succeeded on three boards, but in the first two attempts, I had
+to hand rework after the SMD oven bake resulted in one or more leads not connected. 
+The third attempt used the technique in this
+<a href='https://www.youtube.com/watch?v=xPFujTJbUkI'>video</a> and resulted in all 6 leads nicely soldered.
+
+Power options
+<ul>
+<li>The circuit is simple and can be haywired without a PCB. Its the builder's choice
+<li>The PCB has positions for two AA cells. And the PCB has two hole configurations for
+cell holders. Either one two-cell keystone 2462 holder, or two one-cell keystone 2460 holders.
+<li>Or, a PJ-202A 5.5mm x 2.1mm power jack may be installed, which routes up to 12VDC
+to the regulator on the Pro Mini. The PCB has holes to accommodate the jack on either
+its top or bottom.
+</ul>
 
 Of the sleep options available at compile time in this sketch, the best
-battery life is obtained with a 10M ohm resistor in parallel with a 1uF
+battery life is obtained with a 10M ohm resistor in parallel with a 1uF or larger
 capacitor across digital pins 3 and 4, with the + side of the capacitor on
 digital 3. SMD components of size 1206 are easy enough to solder on. The R can
 go on one side of the CPU board and the C on the other.
@@ -22,14 +52,21 @@ The component values are not critical. A pair of AAA lithium cells
 powered one of these for 9 months (and counting) with SetDelayLoopCount 
 configured such that updates occur about every 11 minutes. A different unit
 configured for 5 minute updates lasted 6 months. AA cells are rated
-to twice the capacity of AAA if these battery changes are too frequent.
+to about twice the Amp-Hour life of AAA cells.
 
-A 2.7K resistor is added from A0 to ground for the purpose of 
-telemetering the battery volatage.
-On the Arduinio Mini Pro, 3.3V version, solder jumper SJ1 is removed (which disables
-the on-board volatage regulator and LED.)
-The system is powered with a 2 cell AAA (or AA) lithium battery wired to VCC (not RAW).
+A 2.7K resistor is from A0 to ground for the purpose of 
+telemetering the battery volatage. 
+On the Arduinio Mini Pro, 3.3V version, solder jumper SJ1 is removed which disables
+the on-board volatage regulator and LED.
+The system is powered with a 2 cell AA (or AAA) lithium battery wired to VCC (not RAW).
 
-The required SetFrequencyBand settings are documented in RFM69.h (91 in USA)
+The required SetFrequencyBand settings are documented in RFM69.h (91 in USA). The Arduino
+can be programmed through either its serial interface or the ISP pins on the PCB. But
+the RFM69 configuration can only be accomplished through the Arduino's serial interface. 
+
+Cover
+
+The CAD directory has a 3D model for a one-piece enclosure that covers the arduino, but leaves the
+battery pack exposed.
 
 
