@@ -5,7 +5,7 @@
 ** This sketch is accompanied in its git repository by a design for a 1.7" by 2.5" PCB.
 ** That PCB makes the connections more convenient, and the packaging solid, but its
 ** also workable to simply use the sparkfun breakout packaging of the RFM69 and either
-** the TMP102 or the Si7021 and haywire a wireless thermometer.
+** the TMP102 or the Si7021 and haywire the three together with a 2 cell battery.
 **
 ** This sketch has compile time #define's for the various i2c sensors. While multiple
 ** sensors can be compiled in, the #define's in this sketch arrange for only one of the
@@ -34,7 +34,7 @@
 #define USE_TMP102
 //#define USE_HIH6130
 //#define USE_TMP175
-//#define USE_SI7021
+#define USE_SI7021
 
 // The TMP102 has temperature only, -40C to 100C
 // The HIH6130 has temperature and relative humidity, -20C to 85C
@@ -76,9 +76,9 @@ namespace {
     const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen Serial/RF for this long
     const unsigned long NormalListenAfterTransmit = 300;// after TX, go to RX for this long
 
-#if defined(USE_TMP102)
-// The TMP102 is documented to be backwards compatible with the TMP75.
-    TMP175 tmp102(0x48, 30); /* PCB layout puts tmp102 at 0x49. TMP102 breakout board gives 0x48*/
+#if defined(USE_TMP102) // The TMP102 is documented to be backwards compatible with TMP75 i2c commands.
+    TMP175 tmp102(0x49, 30); /* PCB layout puts tmp102 at 0x49.*/
+    //TMP175 tmp102(0x48, 30); /* TMP102 breakout board gives 0x48*/
 #endif
 #if defined(USE_HIH6130)
     HomeAutomationTools::HIH6130 sensor0;
@@ -91,11 +91,6 @@ namespace {
 #endif
 
 #if defined(USE_RFM69)
-    // RFM69 frequency, uncomment the frequency of your module:
-
-    //#define FREQUENCY   RF69_433MHZ
-#define FREQUENCY     RF69_915MHZ
-
 // AES encryption (or not):
     const bool ENCRYPT = true; // Set to "true" to use encryption
     // Use ACKnowledge when sending messages (or not):
@@ -160,14 +155,14 @@ void setup()
 
     Serial.begin(9600);
 
-#if defined(USE_TMP102)
+#if defined(USE_SI7021)
+    Serial.println("PacketThermometer " VERSION_STRING " SI7021");
+#elif defined(USE_TMP102)
     Serial.println("PacketThermometer " VERSION_STRING " TMP102");
 #elif defined(USE_HIH6130)
     Serial.println("PacketThermometer " VERSION_STRING " HIH6130");
 #elif defined(USE_TMP175)
     Serial.println("PacketThermometer " VERSION_STRING " TMP175");
-#elif defined(USE_SI7021)
-    Serial.println("PacketThermometer " VERSION_STRING " SI7021");
 #endif
 
     Serial.print("Node ");
@@ -388,7 +383,7 @@ void loop()
         pinMode(BATTERY_PIN, INPUT); // turn off battery drain
 #endif
 
-#if defined(USE_TMP102) || defined(USE_TMP175)
+#if (defined(USE_TMP102) || defined(USE_TMP175)) && !defined(USE_SI7021)
         {
 #if defined(USE_TMP102)
             auto temperature256 = tmp102.finishReadTempCx256();
@@ -435,8 +430,16 @@ void loop()
             unsigned char stat = sensor0.GetReadings(humidity, temperature);
             sensor0.end();
 #elif defined(USE_SI7021)
+#if defined(USE_TMP102)
+            // The temperature readout from the Si7021 only has about 1 degree F resolution
+            // If a TMP102 or TMP175 is also installed and compiled, use its temperature
+            temperature = tmp102.finishReadTempCx256() / 256.f;
+#elif defined(USE_TMP175)
+            temperature = tmp175.finishReadTempCx256() / 256.f;
+#else
             si7021.startReadTemperature();
             temperature = si7021.readTemperature();
+#endif
             si7021.startReadHumidity();
             humidity = si7021.readHumidity();
 #endif

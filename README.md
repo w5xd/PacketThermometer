@@ -9,16 +9,18 @@ The devices with positions on the PCB are:
 <ul>
 <li>There are three header pin outs on the board. 
 The pin hookups are the same for any sensor: GND, VCC (3.3V), SDA, SCL are the only
-pins used. The pin positions on their breakout boards differ.</li>
+pins used. The pin positions on the various Sparkfun breakout boards differ, which
+is why there are several hole patterns on the PCB for headers</li>
 <li>TMP102. Its SMD board layout puts it at i2c address 0x49.
 <a href='https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide'>https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide.</a>
 The sparkfun breakout board wires the i2c address pin at 0x48.
-<li>HIH6131, which measures humidity as well as temperature. The PCB layout puts it at i2c 0x27.
+<li>HIH6131, measures humidity as well as temperature. The PCB layout puts it at i2c 0x27.
 <a href='https://www.sparkfun.com/products/11295'>HIH6130</a>
 has
 humidity in addition to temperature, but is limited to -20C to 85C.</li>
-<li>Si7021, which measures humidity and temperature. It is fixed at i2c 
-address 0x40.
+<li>Si7021, measures humidity and temperature. It is fixed at i2c 
+address 0x40. It has a rather coarse temperature readout--about 1 degree Farenheit resolution
+when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore i2c address 0x37
 </ul>
 
@@ -26,8 +28,10 @@ PCB assembly
 
 While the PCB has multiple positions for placing sensors, the sketch only reports one of them.
 The board position for the TMP102 accommodates that chip's 0.5mm lead spacing. That small spacing
-is challenging to hand assemble. I succeeded on two boards, but in both cases, the first trip
-through the SMD oven resulted in one or more leads not connected.
+is challenging to hand assemble. I succeeded on three boards, but in the first two attempts, I had
+to hand rework after the SMD oven bake resulted in one or more leads not connected. 
+The third attempt used the technique in this
+<a href='https://www.youtube.com/watch?v=xPFujTJbUkI'>video</a> and resulted in all 6 leads nicely soldered.
 
 Power options
 <ul>
@@ -50,8 +54,8 @@ configured such that updates occur about every 11 minutes. A different unit
 configured for 5 minute updates lasted 6 months. AA cells are rated
 to about twice the Amp-Hour life of AAA cells.
 
-A 2.7K resistor is added from A0 to ground for the purpose of 
-telemetering the battery volatage.
+A 2.7K resistor is from A0 to ground for the purpose of 
+telemetering the battery volatage. 
 On the Arduinio Mini Pro, 3.3V version, solder jumper SJ1 is removed which disables
 the on-board volatage regulator and LED.
 The system is powered with a 2 cell AA (or AAA) lithium battery wired to VCC (not RAW).
