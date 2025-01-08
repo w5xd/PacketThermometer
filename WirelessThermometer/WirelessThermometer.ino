@@ -31,6 +31,7 @@
 // Original library: https://github.com/LowPowerLab/RFM69
 
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
+// except: SI7021 can also be paired with TMP sensor
 #define USE_TMP102
 //#define USE_HIH6130
 //#define USE_TMP175
@@ -66,7 +67,7 @@
 #include "Si7021.h"
 #endif
 
-#define VERSION_STRING "REV 11"
+#define VERSION_STRING "REV 12"
 
 namespace {
     const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
@@ -75,6 +76,8 @@ namespace {
 
     const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen Serial/RF for this long
     const unsigned long NormalListenAfterTransmit = 300;// after TX, go to RX for this long
+
+    const float MAX_VALID_TEMPERATURE_C = 80.f;
 
 #if defined(USE_TMP102) // The TMP102 is documented to be backwards compatible with TMP75 i2c commands.
     TMP175 tmp102(0x49, 30); /* PCB layout puts tmp102 at 0x49.*/
@@ -157,11 +160,14 @@ void setup()
 
 #if defined(USE_SI7021)
     Serial.println("PacketThermometer " VERSION_STRING " SI7021");
-#elif defined(USE_TMP102)
+#endif
+#if defined(USE_TMP102)
     Serial.println("PacketThermometer " VERSION_STRING " TMP102");
-#elif defined(USE_HIH6130)
+#endif
+#if defined(USE_HIH6130)
     Serial.println("PacketThermometer " VERSION_STRING " HIH6130");
-#elif defined(USE_TMP175)
+#endif
+#if defined(USE_TMP175)
     Serial.println("PacketThermometer " VERSION_STRING " TMP175");
 #endif
 
@@ -399,6 +405,8 @@ void loop()
                 sign = ' ';
 
             int whole = temperature256 >> 8;
+            if (whole >= static_cast<int>(MAX_VALID_TEMPERATURE_C))
+                sign = sign == '-' ? '<' : '>';
             int frac = temperature256 & 0xFF;
             frac *= 100;
             frac >>= 7; // range of 0 through 199
@@ -447,10 +455,15 @@ void loop()
             char sign = '+';
             if (temperature < 0.f) {
                 temperature = -temperature;
-                sign = '-';
+                if (temperature < MAX_VALID_TEMPERATURE_C)
+                    sign = '-';
+                else
+                    sign = '<';
             }
             else if (temperature == 0.f)
                 sign = ' ';
+            else if (temperature >= MAX_VALID_TEMPERATURE_C)
+                sign = '>';
 
             int whole = (int)temperature;
             int wholeRh = (int)humidity;
