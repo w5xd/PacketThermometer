@@ -32,10 +32,10 @@
 
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
 // except: SI7021 can also be paired with TMP sensor
-#define USE_TMP102
-//#define USE_HIH6130
+//#define USE_TMP102
+#define USE_HIH6130
 //#define USE_TMP175
-#define USE_SI7021
+//#define USE_SI7021
 
 // The TMP102 has temperature only, -40C to 100C
 // The HIH6130 has temperature and relative humidity, -20C to 85C
@@ -380,7 +380,6 @@ void loop()
     {
         static char buf[64];
         SampledSinceSleep = true;
-        Wire.begin();
         int batt(0);
 #if defined(TELEMETER_BATTERY_V)
         // 10K to VCC and (wired on board) 2.7K to ground
@@ -388,6 +387,8 @@ void loop()
         batt = analogRead(BATTERY_PIN);
         pinMode(BATTERY_PIN, INPUT); // turn off battery drain
 #endif
+
+        Wire.begin();
 
 #if (defined(USE_TMP102) || defined(USE_TMP175)) && !defined(USE_SI7021)
         {
@@ -437,6 +438,12 @@ void loop()
             // read temperature data
             unsigned char stat = sensor0.GetReadings(humidity, temperature);
             sensor0.end();
+            if (stat != 0)
+            {
+                SampledSinceSleep = false;
+                Wire.end();
+                return;
+            }
 #elif defined(USE_SI7021)
 #if defined(USE_TMP102)
             // The temperature readout from the Si7021 only has about 1 degree F resolution

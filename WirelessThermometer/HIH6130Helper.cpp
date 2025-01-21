@@ -25,25 +25,31 @@ namespace HomeAutomationTools {
 
     unsigned char HIH6130::GetReadings(float &humidity, float &tempC)
     {
+		humidity = -1;
+		tempC = 125;
+
     	Wire.beginTransmission(_address); // start digitization
     	Wire.endTransmission();
     	delay(70); // spec is 60 msec measurement delay
     	Wire.requestFrom(_address, 4);
-    	byte b0, b1, b2, b3;
-    	b0 = Wire.read();
-    	b1 = Wire.read();
-    	b2 = Wire.read();
-    	b3 = Wire.read();
-    	unsigned char ret = (b0 >> 6) & 0x3;
-    	uint16_t h = b0 & 0x3F;
+    	byte b[4];
+		for (uint8_t i = 0; i < 4; i++)
+		{
+			if (Wire.available())
+				b[i] = Wire.read();
+			else
+				return 0xFF;
+		}
+    	unsigned char ret = (b[0] >> 6) & 0x3;
+    	uint16_t h = b[0] & 0x3F;
     	h <<= 8;
-    	h |= b1 & 0xFF;
-    	humidity = static_cast<float>(h) * 100.f / static_cast<float>(0x3fff);
-    	uint16_t t = b2;
+    	h |= b[1] & 0xFF;
+    	humidity = static_cast<float>(h) * 100.f / static_cast<float>(0x3ffe);
+    	uint16_t t = b[2];
     	t <<= 8;
-    	t |= b3 & 0xFF0;
+    	t |= b[3] & 0xFF0;
     	t >>= 2;
-    	tempC = -40 + static_cast<float>(t) * 165.f / static_cast<float>(0x3fff);
+    	tempC = -40 + static_cast<float>(t) * 165.f / static_cast<float>(0x3ffe);
     	return ret;
     }
 
