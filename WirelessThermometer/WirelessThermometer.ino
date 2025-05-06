@@ -32,10 +32,10 @@
 
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
 // except: SI7021 can also be paired with TMP sensor
-#define USE_TMP102
+//#define USE_TMP102
 //#define USE_HIH6130
-//#define USE_TMP175
-#define USE_SI7021
+#define USE_TMP175
+//#define USE_SI7021
 
 // The TMP102 has temperature only, -40C to 100C
 // The HIH6130 has temperature and relative humidity, -20C to 85C
@@ -67,7 +67,7 @@
 #include "Si7021.h"
 #endif
 
-#define VERSION_STRING "REV 12"
+#define VERSION_STRING "REV 13"
 
 namespace {
     const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
@@ -99,8 +99,7 @@ namespace {
     // Use ACKnowledge when sending messages (or not):
     const bool USEACK = true; // Request ACKs or not
     const int RFM69_RESET_PIN = 9;
-    const uint8_t GATEWAY_NODEID = 1;
-
+ 
     class SleepRFM69 : public RFM69
     {
     public:
@@ -149,6 +148,10 @@ namespace {
     unsigned long TimeOfWakeup;
     const unsigned MAX_SLEEP_LOOP_COUNT = 5000; // a couple times per day is minimum check-in interval
     unsigned SleepLoopTimerCount = 30; // approx 10 seconds per Count
+    uint8_t GatewayNodeId = 1;
+    enum EepromAddress_t {SLEEP_TIMER_COUNT_OFFSET = RadioConfiguration::TOTAL_EEPROM_USED,
+            GATEWAY_NODEID_OFFSET = SLEEP_TIMER_COUNT_OFFSET + sizeof(SleepLoopTimerCount),
+            THERMOMETER_EEPROM_USED = GATEWAY_NODEID_OFFSET + sizeof(GatewayNodeId)};
 }
 
 void setup()
@@ -220,6 +223,13 @@ void setup()
         // Turn on encryption if desired:
         if (ENCRYPT)
             radio.encrypt(radioConfiguration.EncryptionKey());
+        EEPROM.get(GATEWAY_NODEID_OFFSET, GatewayNodeId);
+        if (GatewayNodeId == 0xFFu)
+            GatewayNodeId = 1;
+#if defined(USE_SERIAL)
+        Serial.print("Gateway Node ID:");
+        Serial.println(static_cast<unsigned>(GatewayNodeId));
+#endif
     }
 
 #else
@@ -238,7 +248,7 @@ void setup()
     TimeOfWakeup = millis(); // start loop timer now
 
     unsigned eepromLoopCount(0);
-    EEPROM.get(RadioConfiguration::TotalEpromUsed(), eepromLoopCount);
+    EEPROM.get(SLEEP_TIMER_COUNT_OFFSET, eepromLoopCount);
     if (eepromLoopCount && eepromLoopCount <= MAX_SLEEP_LOOP_COUNT)
         SleepLoopTimerCount = eepromLoopCount;
 
@@ -265,6 +275,7 @@ namespace {
     bool processCommand(const char* pCmd)
     {
         static const char SET_LOOPCOUNT[] = "SetDelayLoopCount";
+        static const char SET_GATEWAY[] = "SetGatewayNodeId";
         if (strncmp(pCmd, SET_LOOPCOUNT, sizeof(SET_LOOPCOUNT) - 1) == 0)
         {
             pCmd = RadioConfiguration::SkipWhiteSpace(
@@ -276,9 +287,20 @@ namespace {
                 if (v && v < MAX_SLEEP_LOOP_COUNT)
                 {
                     SleepLoopTimerCount = v;
-                    EEPROM.put(RadioConfiguration::TotalEpromUsed(), SleepLoopTimerCount);
+                    EEPROM.put(SLEEP_TIMER_COUNT_OFFSET, SleepLoopTimerCount);
                     return true;
                 }
+            }
+        }
+        else if (strncmp(pCmd, SET_GATEWAY, sizeof(SET_GATEWAY) - 1) == 0)
+        {
+            pCmd = RadioConfiguration::SkipWhiteSpace(
+                pCmd + sizeof(SET_GATEWAY) - 1);
+            if (pCmd)
+            {
+                GatewayNodeId = static_cast<uint8_t>(RadioConfiguration::toDecimalUnsigned(pCmd));
+                EEPROM.put(GATEWAY_NODEID_OFFSET, GatewayNodeId);
+                return true;
             }
         }
         return false;
@@ -425,7 +447,7 @@ void loop()
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
             if (enableRadio)
-                radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+                radio.sendWithRetry(GatewayNodeId, buf, strlen(buf));
 #endif
         }
 #endif
@@ -479,7 +501,7 @@ void loop()
 #endif
 #if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
             if (enableRadio)
-                radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+                radio.sendWithRetry(GatewayNodeId, buf, strlen(buf));
 #endif
         }
 #endif
