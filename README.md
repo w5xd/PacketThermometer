@@ -22,6 +22,14 @@ humidity in addition to temperature, but is limited to -20C to 85C.</li>
 address 0x40. It has a rather coarse temperature readout--about 1 degree Farenheit resolution
 when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore i2c address 0x37
+<li>SN74LVC1G14. single inverter schmitt trigger input. Only on REV 06 of the PCB and higher. 
+This part reduces the power drain due to the RC circuit slowly raising the INT2 pin
+through Vcc/2 (see Atmega328 specs for why this happens.) Without this part,
+it is possible to cut one trace and add a solder bridge to revert back to the pre
+REV 06 circuit. The trace to cut is on the bottom side. It crosses the AA cell
+silkscreen right next to a "+" in the silk screen. The bridge to add is also on the
+bottom side, between INT1 on the
+Pro Mini (aka Data input pin 3) and the 10M resistor pad right next to it.
 </ul>
 
 PCB assembly
@@ -45,9 +53,8 @@ its top or bottom.
 
 Of the sleep options available at compile time in this sketch, the best
 battery life is obtained with a 10M ohm resistor in parallel with a 1uF or larger
-capacitor across digital pins 3 and 4, with the + side of the capacitor on
-digital 3. SMD components of size 1206 are easy enough to solder on. The R can
-go on one side of the CPU board and the C on the other.
+capacitor at the position labeled "10uF" under the Pro Mini. 
+SMD components of size 1206 are easy enough to solder on. 
 The component values are not critical. A pair of AAA lithium cells
 powered one of these for 9 months (and counting) with SetDelayLoopCount 
 configured such that updates occur about every 11 minutes. A different unit
@@ -67,6 +74,7 @@ the RFM69 configuration can only be accomplished through the Arduino's serial in
 Cover
 
 The CAD directory has a 3D model for a one-piece enclosure that covers the arduino, but leaves the
-battery pack exposed.
+battery pack exposed. And there is also a 3D model for weather tight ORing enclosure that 
+mates the PCB holes.
 
 

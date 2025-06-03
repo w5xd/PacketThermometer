@@ -541,7 +541,7 @@ void loop()
 }
 
 #if !defined(SLEEP_WITH_TIMER2)
-void sleepPinInterrupt()	// requires 1uF and 10M between two pins
+void sleepPinInterrupt()	// requires 1uF parallel 10M between two pins
 {
     detachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN));
 }
@@ -577,7 +577,7 @@ namespace {
         unsigned count = 0;
 
 #if !defined(SLEEP_WITH_TIMER2)
-        // this requires 1uF and 10M in parallel between pins 3 & 4
+        // this requires 1uF and 10M in parallel to trigger INT1 on pin 3
         while (count < SleepLoopTimerCount)
         {
             power_timer0_enable(); // delay() requires this
@@ -599,7 +599,7 @@ namespace {
             sleep_enable();
             sleep_bod_disable();
             sei();
-            sleep_cpu(); // about 300uA, average. About 200uA and rises as cap discharges
+            sleep_cpu(); // about 300uA, average. About 200uA and rises as pin 3 approaches Vcc/2. except on REV06 schmitt trigger
             sleep_disable();
             sei();
             count += 1;
