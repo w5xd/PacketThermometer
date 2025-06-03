@@ -67,7 +67,10 @@
 #include "Si7021.h"
 #endif
 
-#define VERSION_STRING "REV 13"
+#define TIMER_INIT_IS_PIN4_LOW
+//#define TIMER_INIT_IS_PIN3_HIGH
+
+#define VERSION_STRING "REV 14"
 
 namespace {
     const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
@@ -173,7 +176,12 @@ void setup()
 #if defined(USE_TMP175)
     Serial.println("PacketThermometer " VERSION_STRING " TMP175");
 #endif
-
+#if defined(TIMER_INIT_IS_PIN3_HIGH)
+    Serial.println(F("Timer init PIN3 HIGH"));
+#endif
+#if defined(TIMER_INIT_IS_PIN4_LOW)
+    Serial.println(F("Timer init PIN4 LOW"));
+#endif
     Serial.print("Node ");
     Serial.print(radioConfiguration.NodeId(), DEC);
     Serial.print(" on network ");
@@ -573,9 +581,16 @@ namespace {
         while (count < SleepLoopTimerCount)
         {
             power_timer0_enable(); // delay() requires this
+#if defined(TIMER_INIT_IS_PIN3_HIGH)
             pinMode(TIMER_RC_PIN, OUTPUT);
             digitalWrite(TIMER_RC_PIN, HIGH);
-            delay(10); // Charge the 1uF
+            delay(10); // Charge the C
+#elif defined (TIMER_INIT_IS_PIN4_LOW)
+            pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
+            digitalWrite(TIMER_RC_GROUND_PIN, LOW);
+            delay(10); // Charge the C
+            pinMode(TIMER_RC_GROUND_PIN, INPUT);
+#endif
             cli();
             power_timer0_disable(); // timer0 powered down again
             attachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN), sleepPinInterrupt, LOW);
