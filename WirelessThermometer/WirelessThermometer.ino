@@ -32,10 +32,10 @@
 
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
 // except: SI7021 can also be paired with TMP sensor
-//#define USE_TMP102
+#define USE_TMP102
 //#define USE_HIH6130
-#define USE_TMP175
-#define USE_SI7021
+//#define USE_TMP175
+//#define USE_SI7021
 
 // The TMP102 has temperature only, -40C to 100C
 // The HIH6130 has temperature and relative humidity, -20C to 85C
@@ -67,8 +67,8 @@
 #include "Si7021.h"
 #endif
 
-#define TIMER_INIT_IS_PIN4_LOW
-//#define TIMER_INIT_IS_PIN3_HIGH
+//#define TIMER_INIT_IS_PIN4_LOW // with SN74LVC1 Schmitt trigger
+#define TIMER_INIT_IS_PIN3_HIGH  // PCB rev05 and prior, 
 
 #define VERSION_STRING "REV 14"
 
