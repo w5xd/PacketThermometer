@@ -67,8 +67,8 @@
 #include "Si7021.h"
 #endif
 
-//#define TIMER_INIT_IS_PIN4_LOW // with SN74LVC1 Schmitt trigger
-#define TIMER_INIT_IS_PIN3_HIGH  // PCB rev05 and prior, 
+#define TIMER_INIT_IS_PIN4_LOW // REV06 of PCB and higher. with SN74LVC1 Schmitt trigger
+//#define TIMER_INIT_IS_PIN3_HIGH  // PCB REV05 and prior, 
 
 #define VERSION_STRING "REV 14"
 
