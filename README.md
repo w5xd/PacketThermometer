@@ -22,7 +22,7 @@ humidity in addition to temperature, but is limited to -20C to 85C.</li>
 address 0x40. It has a rather coarse temperature readout--about 1 degree Farenheit resolution
 when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore i2c address 0x37
-<li>SN74LVC1G14. single inverter schmitt trigger input. Only on REV 06 of the PCB and higher. 
+<li>SN74AHC1G14. single inverter schmitt trigger input. Only on REV 06 of the PCB and higher. 
 This part reduces the power drain due to the RC circuit slowly raising the INT2 pin
 through Vcc/2 (see Atmega328 specs for why this happens.) Without this part,
 it is possible to cut one trace and add a solder bridge to revert back to the pre

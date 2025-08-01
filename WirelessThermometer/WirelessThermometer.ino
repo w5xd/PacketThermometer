@@ -67,7 +67,7 @@
 #include "Si7021.h"
 #endif
 
-#define TIMER_INIT_IS_PIN4_LOW // REV06 of PCB ONLY. with SN74LVC1 Schmitt trigger. turned out not to work very well. Use REV05
+#define TIMER_INIT_IS_PIN4_LOW // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. turned out not to work very well. Use REV05
 //#define TIMER_INIT_IS_PIN3_HIGH  // PCB REV05 and prior, 
 
 #define VERSION_STRING "REV 14"
@@ -599,10 +599,6 @@ namespace {
             sleep_enable();
             sleep_bod_disable();
             sei();
-            // OOPS*************************
-            // The REV06 schmitt trigger PCB turned out to draw current WORSE than REV05!
-            // The problem is the schmitt trigger circuit spent a LOT of time in the high current consumption mode (above 1mA)  because the
-            // capacitor had to charge all the way to the "far" schmitt trigger point.
             sleep_cpu(); // about 300uA, average. About 200uA and rises as pin 3 approaches Vcc/2. except on REV06 schmitt trigger
             sleep_disable();
             sei();
