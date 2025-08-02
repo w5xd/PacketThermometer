@@ -23,8 +23,12 @@ address 0x40. It has a rather coarse temperature readout--about 1 degree Farenhe
 when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore i2c address 0x37
 <li>SN74AHC1G14. single inverter schmitt trigger input. Only on REV 06 of the PCB and higher. 
+(Note: REV06 of the PCB and its schematic reference the 74LVT1G14. That is <b>not</b> an
+acceptable part. It has the same package and pinout, but its a different technology.
+It draws far too much Icc when its input voltage rises slowly. Don't ask
+me how I know.)
 This part reduces the power drain due to the RC circuit slowly raising the INT2 pin
-through Vcc/2 (see Atmega328 specs for why this happens.) Without this part,
+through Vcc/2 (see Atmega328 specs for why this happens.) Without the schmitt inverter,
 it is possible to cut one trace and add a solder bridge to revert back to the pre
 REV 06 circuit. The trace to cut is on the bottom side. It crosses the AA cell
 silkscreen right next to a "+" in the silk screen. The bridge to add is also on the
