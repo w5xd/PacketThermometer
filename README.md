@@ -5,14 +5,14 @@ The hardware configuration is the combination of the RFM69 wireless module
 and any of several temperature sensors:
 <br/>
 
-The devices with positions on the PCB are:
+The semiconductors with positions on the PCB are:
 <ul>
-<li>There are three header pin outs on the board. 
+
+<li>TMP102. Its SMD board layout puts it at i2c address 0x49.
+<li>There are headers  on the board for various break out temperature sensors.
 The pin hookups are the same for any sensor: GND, VCC (3.3V), SDA, SCL are the only
 pins used. The pin positions on the various Sparkfun breakout boards differ, which
-is why there are several hole patterns on the PCB for headers</li>
-<li>TMP102. Its SMD board layout puts it at i2c address 0x49.
-<a href='https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide'>https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide.</a>
+is why there are several hole patterns on the PCB for headers</li><a href='https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide'>https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide.</a>
 The sparkfun breakout board wires the i2c address pin at 0x48.
 <li>HIH6131, measures humidity as well as temperature. The PCB layout puts it at i2c 0x27.
 <a href='https://www.sparkfun.com/products/11295'>HIH6130</a>
@@ -22,19 +22,21 @@ humidity in addition to temperature, but is limited to -20C to 85C.</li>
 address 0x40. It has a rather coarse temperature readout--about 1 degree Farenheit resolution
 when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore i2c address 0x37
-<li>SN74AHC1G14. single inverter schmitt trigger input. Only on REV 06 of the PCB and higher. 
-(Note: REV06 of the PCB and its schematic reference the 74LVT1G14. That is <b>not</b> an
-acceptable part. It has the same package and pinout, but its a different technology.
-It draws far too much Icc when its input voltage rises slowly. Don't ask
-me how I know.)
-This part reduces the power drain due to the RC circuit slowly raising the INT2 pin
-through Vcc/2 (see Atmega328 specs for why this happens.) Without the schmitt inverter,
-it is possible to cut one trace and add a solder bridge to revert back to the pre
-REV 06 circuit. The trace to cut is on the bottom side. It crosses the AA cell
-silkscreen right next to a "+" in the silk screen. The bridge to add is also on the
-bottom side, between INT1 on the
-Pro Mini (aka Data input pin 3) and the 10M resistor pad right next to it.
+<li>DMP2305U (p-channel MOSFET), DMG3406L (n-channel MOSFET), and SD0805S020S1R0 schotkey diodes. (REV07 of
+the PCB and later.) All of
+these are part of a <a href='BatteryExtenderCircuit.pdf'>"Battery Extender" circuit</a>. 
 </ul>
+
+Battery Extender
+
+With the prior versions of the PCB (REV05 and earlier), the sleep time was determined by a 
+single R and C that holds the INT pin (D3 on the Arduino) close to
+Vcc/2 for an extended period, which causes the Atmega328 to draw up to about 500uA beyond the sleep
+current of 200uA for this circuit. The Battery extender is implemented using a p-channel MOSFET, Q12, with a low
+gate threshold (less than -1V is required). Q12 turns on when the RC circuit (at C11 and R11) discharges one
+gate threshold below the 3.3V Vcc. When Q12 turns on, it uses Q13 to truncate that normal RC decay, which trigger
+port D3's interrupt. The other pair of MOSFETs implements a charge pump so that the RC circuit discharges from
+twice Vcc (about 6V) which gives a much longer time delay than is feasible without it.
 
 PCB assembly
 
