@@ -4,3 +4,5 @@ REV0*/
 *~
 *.swp
 .vs/
+*.log
+*.raw

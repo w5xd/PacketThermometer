@@ -1,0 +1,26 @@
+Version 4
+SymbolType BLOCK
+LINE Normal -48 16 16 16
+LINE Normal -48 32 -48 29
+LINE Normal 31 16 32 -49
+LINE Normal -48 1 -48 16
+LINE Normal -48 1 -32 -12
+LINE Normal -47 1 -48 1
+LINE Normal -32 10 -48 1
+LINE Normal 65 -16 32 -16
+LINE Normal -48 -48 -48 -80
+LINE Normal -48 16 -48 32
+LINE Normal 16 -48 -48 -48
+LINE Normal 16 0 16 -48
+LINE Normal -48 0 16 0
+LINE Normal 16 16 16 0
+WINDOW 3 0 40 Top 2
+SYMATTR Value DMP2305U
+SYMATTR Prefix X
+SYMATTR ModelFile .\DMP2305U.spice.txt
+PIN -48 -80 LEFT 8
+PINATTR SpiceOrder 1
+PIN 64 -16 RIGHT 8
+PINATTR SpiceOrder 2
+PIN -48 32 RIGHT 8
+PINATTR SpiceOrder 3
