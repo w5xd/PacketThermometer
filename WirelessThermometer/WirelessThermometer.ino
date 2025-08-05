@@ -47,8 +47,9 @@
 //if a permanent power source is connected, comment out the next line...
 #define TELEMETER_BATTERY_V // ...because the power supply voltage wont ever change.
 
-#define TIMER_INIT_IS_PIN4_LOW // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
-//#define TIMER_INIT_IS_PIN3_HIGH  // PCB REV05 and prior, 
+#define TIMER_INIT_IS_PIN4_PWM  // REV07 of PCB and later: Battery Extender Circuit
+//#define TIMER_INIT_IS_PIN4_LOW  // PCB REV05 and prior, 
+// REV06 of the PCB has an external schmitt trigger device, and is not supported by this sketch.
 
 
 // Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
@@ -71,7 +72,7 @@
 #include "Si7021.h"
 #endif
 
-#define VERSION_STRING "REV 14"
+#define VERSION_STRING "REV 15"
 
 namespace {
     const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
@@ -177,11 +178,10 @@ void setup()
 #if defined(USE_TMP175)
     Serial.println("PacketThermometer " VERSION_STRING " TMP175");
 #endif
-#if defined(TIMER_INIT_IS_PIN3_HIGH)
-    Serial.println(F("Timer init PIN3 HIGH"));
-#endif
-#if defined(TIMER_INIT_IS_PIN4_LOW)
-    Serial.println(F("Timer init PIN4 LOW"));
+#if defined(TIMER_INIT_IS_PIN4_PWM)
+    Serial.println(F("Timer init supports Battery Extender"));
+#elif defined(TIMER_INIT_IS_PIN4_LW)
+    Serial.println(F("Timer init PIN4 constant LOW"));
 #endif
     Serial.print("Node ");
     Serial.print(radioConfiguration.NodeId(), DEC);
@@ -582,15 +582,19 @@ namespace {
         while (count < SleepLoopTimerCount)
         {
             power_timer0_enable(); // delay() requires this
-#if defined(TIMER_INIT_IS_PIN3_HIGH)
             pinMode(TIMER_RC_PIN, OUTPUT);
             digitalWrite(TIMER_RC_PIN, HIGH);
+#if defined(TIMER_INIT_IS_PIN4_PWM)
+            static const uint8_t NUM_PWM_CYCLES = 100;
+            for (uint8_t i = 0; i < NUM_PWM_CYCLES; i++)
+            {
+                delay(1);
+                digitalWrite(TIMER_RC_GROUND_PIN, HIGH);
+                delay(1);
+                digitalWrite(TIMER_RC_GROUND_PIN, LOW);
+            }
+#else
             delay(10); // Charge the C
-#elif defined (TIMER_INIT_IS_PIN4_LOW)
-            pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
-            digitalWrite(TIMER_RC_GROUND_PIN, LOW);
-            delay(10); // Charge the C
-            pinMode(TIMER_RC_GROUND_PIN, INPUT);
 #endif
             cli();
             power_timer0_disable(); // timer0 powered down again
@@ -601,11 +605,6 @@ namespace {
             sleep_bod_disable();
             sei();
             sleep_cpu(); // Power supply measured: About 250uA rising to about 560 uA on REV05 and lower
-            // On 74LVT1G14 (wrong tech!) goes from 200uA up to 6000 uA before triggering
-            // On 74AHCG14, goes from 250uA up to 830uA
-            // The battery life on the 74LV1G14 was very poor--only about 6 weeks.
-            // as of this writing, battery life on the 74AHC schmitt trigger is not measured, but the
-            // above predicts the older circuit (REV05 and older) is better
             sleep_disable();
             sei();
             count += 1;
