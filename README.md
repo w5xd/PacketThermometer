@@ -38,6 +38,9 @@ gate threshold below the 3.3V Vcc. When Q12 turns on, it uses Q13 to truncate th
 port D3's interrupt. The other pair of MOSFETs implements a charge pump so that the RC circuit discharges from
 twice Vcc (about 6V) which gives a much longer time delay than is feasible without it.
 
+REV07 of the PCB can be assembled using the older (REV05) configuration with only R11 and C11 if you
+also install a jumper in the holes provided at D12
+
 PCB assembly
 
 While the PCB has multiple positions for placing sensors, the sketch only reports one of them.
@@ -59,8 +62,9 @@ its top or bottom.
 
 Of the sleep options available at compile time in this sketch, the best
 battery life is obtained with a 10M ohm resistor in parallel with a 1uF or larger
-capacitor at the position labeled "10uF" under the Pro Mini. 
-SMD components of size 1206 are easy enough to solder on. 
+capacitor at the position labeled "10uF" under the Pro Mini on REV05 and earlier.
+REV07 and later has the Battery Extender circuit described above.
+SMD components of size 0805 are easy enough to solder on. 
 The component values are not critical. A pair of AAA lithium cells
 powered one of these for 9 months (and counting) with SetDelayLoopCount 
 configured such that updates occur about every 11 minutes. A different unit
