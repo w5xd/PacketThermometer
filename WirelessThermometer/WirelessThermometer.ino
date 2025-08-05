@@ -47,9 +47,8 @@
 //if a permanent power source is connected, comment out the next line...
 #define TELEMETER_BATTERY_V // ...because the power supply voltage wont ever change.
 
-#define TIMER_INIT_IS_PIN4_LOW // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
-//#define TIMER_INIT_IS_PIN3_HIGH  // PCB REV05 and prior, 
-
+#define TIMER_INIT_IS_PIN4_PWM  // PCB REV05 and prior, and REV07 and later. For earlier boards, "SetD4PwmCount 0" 
+//#define TIMER_INIT_IS_PIN4_LOW // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
 
 // Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
@@ -71,7 +70,7 @@
 #include "Si7021.h"
 #endif
 
-#define VERSION_STRING "REV 14"
+#define VERSION_STRING "REV 15"
 
 namespace {
     const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
@@ -153,9 +152,11 @@ namespace {
     const unsigned MAX_SLEEP_LOOP_COUNT = 5000; // a couple times per day is minimum check-in interval
     unsigned SleepLoopTimerCount = 30; // approx 10 seconds per Count
     uint8_t GatewayNodeId = 1;
+    uint8_t D4PwmCount = 100; // range is 0 to 255
     enum EepromAddress_t {SLEEP_TIMER_COUNT_OFFSET = RadioConfiguration::TOTAL_EEPROM_USED,
             GATEWAY_NODEID_OFFSET = SLEEP_TIMER_COUNT_OFFSET + sizeof(SleepLoopTimerCount),
-            THERMOMETER_EEPROM_USED = GATEWAY_NODEID_OFFSET + sizeof(GatewayNodeId)};
+            D4PWMCOUNT = GATEWAY_NODEID_OFFSET + sizeof(GatewayNodeId),
+            THERMOMETER_EEPROM_USED = D4PWMCOUNT + sizeof(D4PwmCount)};
 }
 
 void setup()
@@ -177,12 +178,13 @@ void setup()
 #if defined(USE_TMP175)
     Serial.println("PacketThermometer " VERSION_STRING " TMP175");
 #endif
-#if defined(TIMER_INIT_IS_PIN3_HIGH)
+#if defined(TIMER_INIT_IS_PIN4_PWM)
     Serial.println(F("Timer init PIN3 HIGH"));
 #endif
 #if defined(TIMER_INIT_IS_PIN4_LOW)
-    Serial.println(F("Timer init PIN4 LOW"));
+    Serial.println(F("Timer init PIN4 PWM"));
 #endif
+
     Serial.print("Node ");
     Serial.print(radioConfiguration.NodeId(), DEC);
     Serial.print(" on network ");
@@ -235,9 +237,12 @@ void setup()
         EEPROM.get(GATEWAY_NODEID_OFFSET, GatewayNodeId);
         if (GatewayNodeId == 0xFFu)
             GatewayNodeId = 1;
+        EEPROM.get(D4PWMCOUNT, D4PwmCount);
 #if defined(USE_SERIAL)
         Serial.print("Gateway Node ID:");
         Serial.println(static_cast<unsigned>(GatewayNodeId));
+        Serial.print("D4 PWM COunt:");
+        Serial.println(static_cast<unsigned>(D4PwmCount));
 #endif
     }
 
@@ -285,6 +290,7 @@ namespace {
     {
         static const char SET_LOOPCOUNT[] = "SetDelayLoopCount";
         static const char SET_GATEWAY[] = "SetGatewayNodeId";
+        static const char SET_D4PWMCOUNT[] = "SetD4PwmCount";
         if (strncmp(pCmd, SET_LOOPCOUNT, sizeof(SET_LOOPCOUNT) - 1) == 0)
         {
             pCmd = RadioConfiguration::SkipWhiteSpace(
@@ -312,6 +318,17 @@ namespace {
                 return true;
             }
         }
+        else if (strncmp(pCmd, SET_D4PWMCOUNT, sizeof(SET_D4PWMCOUNT) - 1) == 0)
+        {
+            pCmd = RadioConfiguration::SkipWhiteSpace(
+                pCmd + sizeof(SET_D4PWMCOUNT) - 1);
+            if (pCmd)
+            {
+                D4PwmCount = static_cast<uint8_t>(RadioConfiguration::toDecimalUnsigned(pCmd));
+                EEPROM.put(D4PWMCOUNT, D4PwmCount);
+                return true;
+            }
+        }        
         return false;
     }
 }
@@ -582,9 +599,16 @@ namespace {
         while (count < SleepLoopTimerCount)
         {
             power_timer0_enable(); // delay() requires this
-#if defined(TIMER_INIT_IS_PIN3_HIGH)
+#if defined(TIMER_INIT_IS_PIN4_PWM)
             pinMode(TIMER_RC_PIN, OUTPUT);
             digitalWrite(TIMER_RC_PIN, HIGH);
+            for (uint8_t i = 0; i < D4PwmCount; i++)
+            {
+                delay(1);
+                digitalWrite(TIMER_RC_GROUND_PIN, HIGH);
+                delay(1);
+                digitalWrite(TIMER_RC_GROUND_PIN, LOW);
+            }
             delay(10); // Charge the C
 #elif defined (TIMER_INIT_IS_PIN4_LOW)
             pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
@@ -601,11 +625,6 @@ namespace {
             sleep_bod_disable();
             sei();
             sleep_cpu(); // Power supply measured: About 250uA rising to about 560 uA on REV05 and lower
-            // On 74LVT1G14 (wrong tech!) goes from 200uA up to 6000 uA before triggering
-            // On 74AHCG14, goes from 250uA up to 830uA
-            // The battery life on the 74LV1G14 was very poor--only about 6 weeks.
-            // as of this writing, battery life on the 74AHC schmitt trigger is not measured, but the
-            // above predicts the older circuit (REV05 and older) is better
             sleep_disable();
             sei();
             count += 1;
