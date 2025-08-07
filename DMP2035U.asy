@@ -1,0 +1,27 @@
+Version 4
+SymbolType BLOCK
+LINE Normal -48 -32 15 -32
+LINE Normal -48 -48 -48 -32
+LINE Normal 16 32 16 -32
+LINE Normal -48 32 16 32
+LINE Normal -48 64 -48 32
+LINE Normal -48 -64 -48 -48
+LINE Normal -48 33 -48 16
+LINE Normal -16 24 -32 16
+LINE Normal -16 7 -16 24
+LINE Normal -32 16 -16 7
+LINE Normal -48 16 -32 16
+LINE Normal 16 16 -16 16
+LINE Normal 32 32 32 -32
+LINE Normal 64 0 32 0
+WINDOW 0 0 -40 Bottom 2
+WINDOW 3 3 71 Top 2
+SYMATTR Prefix X
+SYMATTR Value DMP2035U
+SYMATTR ModelFile .\DMP2035U.spice.txt
+PIN -48 -64 RIGHT 8
+PINATTR SpiceOrder 1
+PIN 64 0 LEFT 8
+PINATTR SpiceOrder 2
+PIN -48 64 LEFT 8
+PINATTR SpiceOrder 3

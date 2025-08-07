@@ -1,6 +1,9 @@
 Release
 Debug
-EP*/
+REV0*/
 *~
 *.swp
 .vs/
+*.log
+*.raw
+*.net
