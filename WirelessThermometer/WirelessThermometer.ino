@@ -47,8 +47,8 @@
 //if a permanent power source is connected, comment out the next line...
 #define TELEMETER_BATTERY_V // ...because the power supply voltage wont ever change.
 
-#define TIMER_INIT_IS_PIN4_PWM  // PCB REV05 and prior, and REV07 and later. For earlier boards, "SetD4PwmCount 0" 
-//#define TIMER_INIT_IS_PIN4_LOW // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
+#define TIMER_INIT_ALL_EXCEPT_PCB_REV06  // PCB REV05 and prior, and REV07 and later. For earlier boards, "SetD4PwmCount 0" 
+//#define TIMER_INIT_IS_PCB_REV06_ONLY // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
 
 // Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
@@ -178,11 +178,10 @@ void setup()
 #if defined(USE_TMP175)
     Serial.println("PacketThermometer " VERSION_STRING " TMP175");
 #endif
-#if defined(TIMER_INIT_IS_PIN4_PWM)
-    Serial.println(F("Timer init PIN3 HIGH"));
-#endif
-#if defined(TIMER_INIT_IS_PIN4_LOW)
-    Serial.println(F("Timer init PIN4 PWM"));
+#if defined(TIMER_INIT_ALL_EXCEPT_PCB_REV06)
+    Serial.println(F("TIMER INIT ALL EXCEPT PC REV06"));
+#elif defined(TIMER_INIT_IS_PCB_REV06_ONLY)
+    Serial.println(F("TIMER INIT IS PCB REV06 ONLY"));
 #endif
 
     Serial.print("Node ");
@@ -599,7 +598,7 @@ namespace {
         while (count < SleepLoopTimerCount)
         {
             power_timer0_enable(); // delay() requires this
-#if defined(TIMER_INIT_IS_PIN4_PWM)
+#if defined(TIMER_INIT_ALL_EXCEPT_PCB_REV06)
             pinMode(TIMER_RC_PIN, OUTPUT);
             digitalWrite(TIMER_RC_PIN, HIGH);
             for (uint8_t i = 0; i < D4PwmCount; i++)
@@ -610,7 +609,7 @@ namespace {
                 digitalWrite(TIMER_RC_GROUND_PIN, LOW);
             }
             delay(10); // Charge the C
-#elif defined (TIMER_INIT_IS_PIN4_LOW)
+#elif defined (TIMER_INIT_IS_PCB_REV06_ONLY)
             pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
             digitalWrite(TIMER_RC_GROUND_PIN, LOW);
             delay(10); // Charge the C
