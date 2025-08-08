@@ -24,28 +24,36 @@ when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore its i2c address is 0x37.
 <li>(REV07 of the PCB and later.) DMP3165L p-channel MOSFET, DMP1045U p-channel MOSFT,   DMN67D8L n-channel MOSFET, and 
 NSVRB751V40T1G schotkey diodes.  All of
-these are part of a <a href='BatteryExtenderCircuit.pdf'>Battery Extender circuit</a>. 
+these are part of a BatteryExtenderCircuit. 
 </ul>
+<p align='center'><a href='BatteryExtenderCircuit.pdf'><img src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
 
 Battery Extender
 
 In the prior versions of the PCB (REV05 and earlier), the sleep time was determined by a 
-single R and C on the INT pin (D3 on the Arduino). That slow moving input stays close to
+single R and C on the INT pin (D3 on the Arduino). Those components were
+chosen for an RC delay of as much as 100 seconds (10M times 10uF). That slow moving input stays close to
 Vdd/2 for an extended period of many dozens of seconds, which in turn causes the Atmega328 to draw up to about 
 500uA above its minimal
 sleep current for that length of time (See the Atmega328P specifications.)
-The Battery Extender accelerates the pass through Vcc/2 using a 
+The Battery Extender eliminates the long period of excess current draw by 
+accelerating the pass through Vcc/2. The circuit depends on a 
 p-channel MOSFET, Q12, with a low
-gate threshold. A threshold specification at Q12 of significantly smaller than -Vdd/2 is required (i.e. much less
+gate threshold. A threshold specification of significantly smaller than -Vdd/2 is required (i.e. much less
 than -1.65 volts.) The nominal threshold of the specified DMP1045U part
 is -700mV. Q12 turns on when the RC circuit at C11, R11 discharges that far
-below Vcc. (This ignores the diode D12's forward drop, which for the specified part is about 300mV for a
-total required discharge of C11,R11 to right at 1 volt below Vdd.) When Q12 turns on, 
-it uses Q13 to quickly truncate the R11/C11 decay, which then
+below Vcc. (Taking into account the diode D12's forward drop&mdash;about 300mV&mdash;means
+the trigger is actually at -700mV-300mV, or right at -1 Volt.) When Q12 turns on, 
+it causes Q13 to quickly truncate the R11/C11 decay, which then
 crosses Vcc/2 in a few milliseconds. The other pair of MOSFETs, Q10 and Q11, implements a charge pump so that the
-RC circuit discharges from as much as double Vcc (about 6V) to get a much longer time delay than is feasible without it.
-The capacitors in the Battery Extender circuit can be identical, but must be ceramic (for very low leakage current
+RC circuit discharges from as much as double Vcc (about 6V) to get a much longer time 
+delay than is feasible without it.
+The capacitors in the Battery Extender circuit can be identical, but must be ceramic 
+(for very low leakage current
 compared to polarized capacitors.) An LTSpice model is published here for the Battery Extender.
+
+<p align='center'><a href='BatteryExtenderTrace.pdf'><img src='./BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
+
 
 If the builder desires, all the Battery Extender components in REV07 of the PCB can be 
 omitted, except for  R11 and C11. Then the PCB implements
