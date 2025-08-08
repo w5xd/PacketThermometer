@@ -26,7 +26,7 @@ when set to its default 14 bit temperature digitization.
 NSVRB751V40T1G schotkey diodes.  All of
 these are part of a BatteryExtenderCircuit. 
 </ul>
-<p align='center'><a href='BatteryExtenderCircuit.pdf'><img src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
+<p align='center'><a href='BatteryExtenderCircuit.pdf'><img img width="50%" src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
 
 Battery Extender
 
@@ -52,7 +52,7 @@ The capacitors in the Battery Extender circuit can be identical, but must be cer
 (for very low leakage current
 compared to polarized capacitors.) An LTSpice model is published here for the Battery Extender.
 
-<p align='center'><a href='BatteryExtenderTrace.pdf'><img src='./BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
+<p align='center'><a href='BatteryExtenderTrace.pdf'><img width="50%" src='./BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
 
 
 If the builder desires, all the Battery Extender components in REV07 of the PCB can be 
