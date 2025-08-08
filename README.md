@@ -26,7 +26,7 @@ when set to its default 14 bit temperature digitization.
 NSVRB751V40T1G schotkey diodes.  All of
 these are part of a BatteryExtenderCircuit. 
 </ul>
-<p align='center'><a href='BatteryExtenderCircuit.pdf'><img img width="50%" src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
+<p align='center'><a href='BatteryExtenderCircuit.pdf'><img img width="75%" src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
 
 Battery Extender
 
@@ -38,8 +38,8 @@ Vdd/2 for an extended period of many dozens of seconds, which in turn causes the
 sleep current for that length of time (See the Atmega328P specifications.)
 The Battery Extender eliminates the long period of excess current draw by 
 accelerating the pass through Vcc/2. The circuit depends on a 
-p-channel MOSFET, Q12, with a low
-gate threshold. A threshold specification of significantly smaller than -Vdd/2 is required (i.e. much less
+p-channel MOSFET with a low
+gate threshold, Q12. A threshold specification of significantly smaller than -Vdd/2 is required (i.e. much less
 than -1.65 volts.) The nominal threshold of the specified DMP1045U part
 is -700mV. Q12 turns on when the RC circuit at C11, R11 discharges that far
 below Vcc. (Taking into account the diode D12's forward drop&mdash;about 300mV&mdash;means
@@ -52,7 +52,7 @@ The capacitors in the Battery Extender circuit can be identical, but must be cer
 (for very low leakage current
 compared to polarized capacitors.) An LTSpice model is published here for the Battery Extender.
 
-<p align='center'><a href='BatteryExtenderTrace.pdf'><img width="50%" src='./BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
+<p align='center'><a href='BatteryExtenderTrace.pdf'><img width="75%" src='./BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
 
 
 If the builder desires, all the Battery Extender components in REV07 of the PCB can be 
