@@ -2,7 +2,7 @@ This repository documents a wireless thermometer project.
 Included are: a circuit design using Arduiono, a PCB design for the Arduino Pro Mini, an Arduino sketch. And an outdoor 3D printed enclosure.
 
 
-<p align='center'><a href='pcb.pdf'><img width='50%' src='pcb.png' alt='pcb.png'/></a></p>
+<p align='center'><a href='pcb.pdf'><img  src='pcb.png' alt='pcb.png'/></a></p>
 
 The hardware configuration is the combination of the RFM69 wireless module
 (<a href='https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide'>https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide</a>)
@@ -25,7 +25,7 @@ when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore its i2c address is 0x37.
 
 </ul>
-<p align='center'><a href='BatteryExtenderCircuit.pdf'><img img width="75%" src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
+<p align='center'><a href='BatteryExtenderCircuit.pdf'><img src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
 
 Battery Extender
 
