@@ -25,7 +25,7 @@ when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore its i2c address is 0x37.
 
 </ul>
-<p align='center'><a href='BatteryExtenderCircuit.pdf'><img src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
+<p align='center'><a href='BatteryExtenderCircuit.pdf'><img src='BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
 
 Battery Extender
 
@@ -41,8 +41,7 @@ p-channel MOSFET with a low
 gate threshold, Q12. A threshold specification of significantly smaller than -Vdd/2 is required (i.e. much less
 than -1.65 volts.) The nominal threshold of the specified DMP1045U part
 is -700mV. Q12 turns on when the RC circuit at C11, R11 discharges that far
-below Vcc. (Taking into account the diode D12's forward drop&mdash;about 300mV&mdash;means
-the trigger is actually at -700mV-300mV, or right at -1 Volt.) When Q12 turns on, 
+below Vcc. When Q12 turns on, 
 it causes Q13 to quickly truncate the R11/C11 decay, which then
 crosses Vcc/2 in a few milliseconds. The other pair of MOSFETs, Q10 and Q11, implements a charge pump so that the
 RC circuit discharges from as much as double Vcc (about 6V) to get a much longer time 
@@ -51,7 +50,7 @@ The capacitors in the Battery Extender circuit can be identical, but must be cer
 (for very low leakage current
 compared to polarized capacitors.) An LTSpice model is published here for the Battery Extender.
 
-<p align='center'><a href='BatteryExtenderTrace.pdf'><img width="75%" src='./BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
+<p align='center'><a href='BatteryExtenderTrace.pdf'><img width="75%" src='BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
 
 
 If the builder desires, you may revert to the REV05 behavior by omitting all the Battery Extender components
