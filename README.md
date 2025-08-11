@@ -25,7 +25,7 @@ when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore its i2c address is 0x37.
 
 </ul>
-<p align='center'><a href='BatteryExtenderCircuit.pdf'><img src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
+<p align='center'><a href='BatteryExtenderCircuit.pdf'><img src='BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
 
 Battery Extender
 
@@ -50,7 +50,7 @@ The capacitors in the Battery Extender circuit can be identical, but must be cer
 (for very low leakage current
 compared to polarized capacitors.) An LTSpice model is published here for the Battery Extender.
 
-<p align='center'><a href='BatteryExtenderTrace.pdf'><img width="75%" src='./BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
+<p align='center'><a href='BatteryExtenderTrace.pdf'><img width="75%" src='BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
 
 
 If the builder desires, you may revert to the REV05 behavior by omitting all the Battery Extender components
