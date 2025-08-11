@@ -41,8 +41,7 @@ p-channel MOSFET with a low
 gate threshold, Q12. A threshold specification of significantly smaller than -Vdd/2 is required (i.e. much less
 than -1.65 volts.) The nominal threshold of the specified DMP1045U part
 is -700mV. Q12 turns on when the RC circuit at C11, R11 discharges that far
-below Vcc. (Taking into account the diode D12's forward drop&mdash;about 300mV&mdash;means
-the trigger is actually at -700mV-300mV, or right at -1 Volt.) When Q12 turns on, 
+below Vcc. When Q12 turns on, 
 it causes Q13 to quickly truncate the R11/C11 decay, which then
 crosses Vcc/2 in a few milliseconds. The other pair of MOSFETs, Q10 and Q11, implements a charge pump so that the
 RC circuit discharges from as much as double Vcc (about 6V) to get a much longer time 
