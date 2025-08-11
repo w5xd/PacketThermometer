@@ -1,12 +1,13 @@
 This repository documents a wireless thermometer project. 
 Included are: a circuit design using Arduiono, a PCB design for the Arduino Pro Mini, an Arduino sketch. And an outdoor 3D printed enclosure.
 
+
+<p align='center'><a href='pcb.pdf'><img  src='pcb.png' alt='pcb.png'/></a></p>
+
 The hardware configuration is the combination of the RFM69 wireless module
 (<a href='https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide'>https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide</a>)
-and any of several temperature sensors:
-<br/>
-
-The semiconductors with positions on the PCB are:
+and any of several temperature sensors listed here.
+The sensor positions on the PCB are:
 <ul>
 
 <li>TMP102. Its SMD board layout puts it at i2c address 0x49.
@@ -22,15 +23,13 @@ humidity in addition to temperature, but is limited to -20C to 85C.</li>
 address 0x40. It has a rather coarse temperature readout--about 1 degree Farenheit resolution
 when set to its default 14 bit temperature digitization.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore its i2c address is 0x37.
-<li>(REV07 of the PCB and later.) DMP3165L p-channel MOSFET, DMP1045U p-channel MOSFT,   DMN67D8L n-channel MOSFET, and 
-NSVRB751V40T1G schotkey diodes.  All of
-these are part of a BatteryExtenderCircuit. 
+
 </ul>
-<p align='center'><a href='BatteryExtenderCircuit.pdf'><img img width="75%" src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
+<p align='center'><a href='BatteryExtenderCircuit.pdf'><img src='./BatteryExtenderCircuit.png' alt='BatteryExtenderCircuit'/></a></p>
 
 Battery Extender
 
-In the prior versions of the PCB (REV05 and earlier), the sleep time was determined by a 
+REV07 and later have this Battery Extender Circuit. In the prior versions of the PCB (REV05 and earlier), the sleep time was determined by a 
 single R and C on the INT pin (D3 on the Arduino). Those components were
 chosen for an RC delay of as much as 100 seconds (10M times 10uF). That slow moving input stays close to
 Vdd/2 for an extended period of many dozens of seconds, which in turn causes the Atmega328 to draw up to about 
@@ -55,13 +54,12 @@ compared to polarized capacitors.) An LTSpice model is published here for the Ba
 <p align='center'><a href='BatteryExtenderTrace.pdf'><img width="75%" src='./BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
 
 
-If the builder desires, all the Battery Extender components in REV07 of the PCB can be 
-omitted, except for  R11 and C11. Then the PCB implements
-the circuit as in REV5 and earlier. Install a jumper in the holes provided at D12.
-(REV06 of the PCB was a failed attempt to extend battery life using an external gate to detect the
+If the builder desires, you may revert to the REV05 behavior by omitting all the Battery Extender components
+except for  R11 and C11.  Install a jumper in the holes provided at D12.
+(Why is REV06 not mentioned? It was a failed attempt to extend battery life using an external gate to detect the
 decaying RC voltage crossing toward zero. The gate worked no better than the Atmega328 input.)
 
-Another alternative at build time would be to omit the charge pump components: R10, C10, Q10, D10, D11 and Q11.
+A second simplifying alternative at build time is to omit the charge pump components: R10, C10, Q10, D10, D11 and Q11.
 The result will be the time delay of R11/C11 discharging from one diode drop below Vdd (D12) down to Q12's
 gate threshold below Vdd. LTSpice predicts that time to be about 9 seconds, but the actual interval depends strongly
 on exactly what the diode drop and the gate threshold happen to be for the components as installed. The charge pump 
@@ -84,7 +82,7 @@ The Battery Extender circuit is positioned under the Pro Mini, which makes it im
 if the Arduino is in place. If you are going to install the assembled PCB in the 3D printed
 weather tight enclosure, the assembly only fits if you solder the Pro Mini in place with, at most,
 0.100 inch headers between the Arduino and the PCB. That is, you must test the Battery Extender
-before soldering the Pro Mini in place. This order of assembly is required for that case
+before soldering the Pro Mini in place. This order of assembly is <i>required</i> for that case
 of installing this PCB in the 3D printed enclosure:
 <ol>
 <li>Prepare an Arduino with headers that can be jumped to headers on the PCB at the Arduino
@@ -93,7 +91,7 @@ all the 3.3 volt parts in the following SMD baking step!.
 <li>Bake all the Battery Extender SMD components onto the PCB. (Do not bake  the RFM69 
 transceiver. Install it after all the other tests.) If your test Arduino
 is 3.3 V, then you may simultaneously bake the sensor. (The Si7021 is 3.3V only!)
-<li>Install headers on the PCB for the Arduino.
+<li>Install headers on the PCB that will eventually be used to mount the Pro Mini.
 <li>Upload the WirelessThermometer.ino sketch with appropriate #define's set onto the
 test Arduino.
 <li>Jumper the following pins between the two boards:
@@ -104,36 +102,40 @@ test Arduino.
 <li>D4
 </ol>
 <li>At this point the thermometer should successfully sleep according to the parameter SetD4PwmCount.
-Set to zero, it should sleep for about 30 seconds for a 3.3V test, or 15 seconds for 5 volts.
-SetD4PwmCount up to 255 should sleep for more than 60 seconds.
+Set to zero, it should sleep for about 7 or 8 seconds.
+SetD4PwmCount up to 255 should sleep for more than 65 seconds.
 <li>If you baked a temperature sensor, it should also be printed out on the Serial port.
+<li>Once the Battery Extender circuit works as predicted, the remaing top side PCB components should be
+mounted <i>except</i> the Pro Mini
+<li>Solder the AA cell holder(s) to the PCB bottom
+<li>Finally, the Pro Mini may be soldered onto the headers installed in step (3) above.
 </ol>
 
 Power options
 <ul>
-<li>The circuit is simple and can be haywired without a PCB. Its the builder's choice
+<li>The circuit is simple and can be haywired without a PCB. Its the builder's choice.
 <li>The PCB has positions for two AA cells. And the PCB has two hole configurations for
-cell holders. Either one two-cell keystone 2462 holder, or two one-cell keystone 2460 holders.
-<li>Or, a PJ-202A 5.5mm x 2.1mm power jack may be installed, which routes up to 12VDC
+cell holders. Either one two-cell keystone 2462 holder, or two one-cell keystone 2460 holders. 
+On the Arduinio Mini Pro, 3.3V version, solder jumper SJ1 is removed to disable
+the on-board volatage regulator and, especially, the power drain from its LED.
+<li>Or, a PJ-202A 5.5mm x 2.1mm power jack may be installed on the PCB, which routes up to 12VDC
 to the regulator on the Pro Mini. The PCB has holes to accommodate the jack on either
-its top or bottom.
+the PCB's top or bottom.
 </ul>
 
 Of the sleep options available at compile time in this sketch, the best
 battery life is obtained an RC circuit.
-REV07 and later has the Battery Extender circuit described above.
-(REV05 and early require a single R and single C.)
-SMD components of size 0805 are easy enough to solder on. 
+REV07 and later have the Battery Extender circuit described above.
+SMD components of size 1206 and 0805 are easy enough to solder on. 
 A pair of AAA lithium cells
 powered one of these for 9 months (and counting) with SetDelayLoopCount 
 configured such that updates occur about every 11 minutes. A different unit
 configured for 5 minute updates lasted 6 months. AA cells are rated
-to about twice the Amp-Hour life of AAA cells.
+to about twice the Amp-Hour life of the equivalent chemistry AAA cells.
 
 A 2.7K resistor is from A0 to ground for the purpose of 
 telemetering the battery volatage. 
-On the Arduinio Mini Pro, 3.3V version, solder jumper SJ1 is removed which disables
-the on-board volatage regulator and LED.
+
 The system is powered with a 2 cell AA (or AAA) lithium battery wired to VCC (not RAW).
 
 The required SetFrequencyBand settings are documented in RFM69.h (91 in USA). The Arduino
