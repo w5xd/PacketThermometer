@@ -32,9 +32,9 @@
 
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
 // except: SI7021 can also be paired with TMP sensor
-#define USE_TMP102
+//#define USE_TMP102
 //#define USE_HIH6130
-//#define USE_TMP175
+#define USE_TMP175
 //#define USE_SI7021
 
 // The TMP102 has temperature only, -40C to 100C
@@ -245,8 +245,6 @@ void setup()
 #if defined(USE_SERIAL)
         Serial.print("Gateway Node ID:");
         Serial.println(static_cast<unsigned>(GatewayNodeId));
-        Serial.print("D4 PWM COunt:");
-        Serial.println(static_cast<unsigned>(D4PwmCount));
 #endif
     }
 
@@ -273,6 +271,10 @@ void setup()
 #if defined(USE_SERIAL)
     Serial.print("SleepLoopTimerCount = ");
     Serial.println(SleepLoopTimerCount);
+#if TIMER_INIT_STYLE >= TIMER_INIT_STYLE_REV07
+    Serial.print("D4 PWM COunt:");
+    Serial.println(static_cast<unsigned>(D4PwmCount));
+#endif
 #endif
 
     Wire.end();
@@ -363,8 +365,9 @@ void loop()
         }
 
         // If the input is a carriage return, or the buffer is full:
+        bool eol = (input == '\r') || (input == '\n');
 
-        if ((input == '\r') || (sendlength == sizeof(sendbuffer) - 1)) // CR or buffer full
+        if (eol || (sendlength == sizeof(sendbuffer) - 1)) // CR or buffer full
         {
             sendbuffer[sendlength] = 0;
             if (processCommand(sendbuffer))
@@ -589,8 +592,7 @@ namespace {
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
-        analogReference(EXTERNAL); // This sequence drops idle current by 30uA
-        analogRead(BATTERY_PIN); // doesn't shut down the band gap until we USE ADC
+        ADCSRA = 0; // Turn off ADC
 #endif
 
         // sleep mode power supply current measurements indicate this appears to be redundant
