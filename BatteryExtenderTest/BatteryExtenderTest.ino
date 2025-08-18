@@ -5,17 +5,26 @@
 ** is soldered in
 */
 
-
-
 namespace {
     const int TIMER_RC_GROUND_PIN = 4;
-    const int TIMER_RC_PIN = A3; // sleep uProc using RC circuit on this pin
+    const int TIMER_RC_PIN = A0; // sleep uProc using RC circuit on this pin
+    const int TIMER_RC_INT_PIN = 3; //Pro Mini has no common analog + interrupt pin. must rewire for this
 }
 
 void setup()
 {
     Serial.begin(9600);
     Serial.println("Battery Extender Test");
+    if (TIMER_RC_PIN != TIMER_RC_INT_PIN)
+        Serial.println(F(
+            "This test sketch is compiled to use a different pin for analogRead versus\r\n"
+            "Interrupt. Presumably that is because its running on an Arduino that has\r\n"
+            "no pin that can do both. This configuration REQUIRES you move the jumper\r\n"
+            "to TIMER_RC_INT_PIN to run the I test\r\n"
+            "and to TIMER_RC_PIN to run the G test"
+        ));
+    Serial.print("gnd="); Serial.println(TIMER_RC_GROUND_PIN);
+    Serial.print("analog="); Serial.println(TIMER_RC_PIN);
 
     analogReference(INTERNAL);
 
@@ -24,40 +33,130 @@ void setup()
 
 }
 
+static uint8_t CYCLES = 0;
+static uint8_t PERIOD = 2;
+static const float VDD = 3.3f;
+
 static void prAnalog(uint16_t t, uint16_t v)
 {
-    Serial.print("t=");
-    Serial.print(t);
+    if (t != -1)
+    {
+        Serial.print("t=");
+        Serial.print(t);
+    }
+    Serial.print(" V=");
+    Serial.print((VDD * v) / 1023u);
     Serial.print(" v=");
     Serial.println(v);
+}
+
+static void charge (int TIMER_RC_PIN)
+{
+        pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
+        pinMode(TIMER_RC_PIN, OUTPUT);
+        digitalWrite(TIMER_RC_PIN, HIGH);
+        for (uint8_t i = 0; ;i++)
+        {
+            digitalWrite(TIMER_RC_GROUND_PIN, LOW);
+            delay(PERIOD);
+            if (i == CYCLES)
+                break;
+            digitalWrite(TIMER_RC_GROUND_PIN, HIGH);
+            delay(PERIOD);
+          }
+        pinMode(TIMER_RC_PIN, INPUT);
+}
+
+volatile static bool hello = false;
+void sleepPinInterrupt()	// requires 1uF parallel 10M between two pins
+{
+    hello = true;
 }
 
 static bool processCommand(const char *v)
 {
     auto beg = millis();
     auto c = *v;
-    if (isalpha(c) && toupper(c) == 'G')
+    auto up = c;
+    if (isalpha(up))
+        up = toupper(c);
+    if (up == 'G')
     {
-        pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
-        pinMode(TIMER_RC_PIN, OUTPUT);
-        digitalWrite(TIMER_RC_PIN, HIGH);
-        digitalWrite(TIMER_RC_GROUND_PIN, HIGH);
-        delay(1);
-        digitalWrite(TIMER_RC_GROUND_PIN, LOW);
-        pinMode(TIMER_RC_PIN, INPUT);
-
-        auto prev = millis();
+        Serial.println("Cycles Test");
+        charge(TIMER_RC_PIN);
+        uint16_t prevV = 0xffff;
+        auto beg2 = millis();
+        Serial.print("charge time="); Serial.println(static_cast<int32_t>(beg2-beg));
+        auto prev = beg2-1000;
+        unsigned long long tAbove = -1;
+        bool printedDeltaT = false;
         for(;;)
         {
             auto tm = millis();
-            if (tm - beg > 1000 * 30)
+            if (tm - beg2 > 1000 * 100)
                 break;
-            if (tm - prev < 333)
+            uint16_t v = analogRead(TIMER_RC_PIN);
+            if (tAbove==-1 && (v < 512+20))
+                tAbove = tm;
+            if (!printedDeltaT && v < 512-20)
+            {
+                Serial.print("crossing t=");
+                Serial.println(static_cast<uint32_t>(tm - tAbove));
+                printedDeltaT = true;
+            }
+            int16_t vDif = v - prevV;
+             if (vDif < 0)
+                vDif = -vDif;
+            if (vDif < 10)
+                continue;
+            if (tm - prev < 10)
                 continue;
             prev = tm;
-            uint16_t v = analogRead(TIMER_RC_PIN);
-            prAnalog(static_cast<uint16_t>(tm-beg), v);
+            prAnalog(static_cast<uint16_t>(tm-beg2), v);
+            prevV = v;
+            if (v < 200)
+                break;
         }
+    }
+    else if (isdigit(c))
+    {
+        CYCLES = 0;
+        while (auto c = *v++)
+        {
+            CYCLES *= 10;
+            if (!isdigit(c))
+                break;
+            CYCLES += (c - '0') ;
+        }
+        Serial.print("CYCLES="); Serial.println(static_cast<unsigned>(CYCLES));
+    }
+    else if (up == 'P')
+    {
+        while (isspace(*++v));
+        PERIOD = 0;
+        while (auto c = *v++)
+        {
+            if (!isdigit(c))
+                break;
+            PERIOD *= 10;
+            PERIOD += c - '0';
+        }
+        Serial.print("PERIOD="); Serial.println(static_cast<unsigned>(PERIOD));
+    }
+    else if (up == 'I')
+    {
+        Serial.println("Interrupt test");
+        charge(TIMER_RC_INT_PIN);
+        auto now = millis();
+        hello = false;
+        attachInterrupt(digitalPinToInterrupt(TIMER_RC_INT_PIN), sleepPinInterrupt, LOW);
+        while(!hello);
+        Serial.print("int time="); Serial.println(static_cast<int32_t>(millis()-now));
+        detachInterrupt(digitalPinToInterrupt(TIMER_RC_INT_PIN));    
+    }
+    else if (up == 'A')
+    {
+        prAnalog(-1, analogRead(TIMER_RC_PIN));
     }
     return true;
 }
@@ -79,8 +178,9 @@ void loop()
     if (Serial.available() > 0)
     {
         char input = Serial.read();
+        bool eol = (input == '\r') || (input == '\n');
 
-        if (input != '\r') // not a carriage return
+        if (!eol) // not a carriage return
         {
             sendbuffer[sendlength] = input;
             sendlength++;
@@ -88,7 +188,7 @@ void loop()
 
         // If the input is a carriage return, or the buffer is full:
 
-        if ((input == '\r') || (sendlength == sizeof(sendbuffer) - 1)) // CR or buffer full
+        if (sendlength != 0 && (eol || (sendlength == sizeof(sendbuffer) - 1))) // CR or buffer full
         {
             sendbuffer[sendlength] = 0;
             processCommand(sendbuffer);
