@@ -6,9 +6,9 @@
 */
 
 namespace {
-    const int TIMER_RC_GROUND_PIN = 4;
+    const int TIMER_RC_GROUND_PIN = 15;
     const int TIMER_RC_PIN = A0; // sleep uProc using RC circuit on this pin
-    const int TIMER_RC_INT_PIN = 3; //Pro Mini has no common analog + interrupt pin. must rewire for this
+    const int TIMER_RC_INT_PIN = 14; //Pro Mini has no common analog + interrupt pin. must rewire for this
 }
 
 void setup()
@@ -25,8 +25,6 @@ void setup()
         ));
     Serial.print("gnd="); Serial.println(TIMER_RC_GROUND_PIN);
     Serial.print("analog="); Serial.println(TIMER_RC_PIN);
-
-    analogReference(INTERNAL);
 
     digitalWrite(TIMER_RC_GROUND_PIN, LOW);
     pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
@@ -88,7 +86,8 @@ static bool processCommand(const char *v)
         auto beg2 = millis();
         Serial.print("charge time="); Serial.println(static_cast<int32_t>(beg2-beg));
         auto prev = beg2-1000;
-        unsigned long long tAbove = -1;
+        typedef unsigned long long tdif_t;
+        tdif_t tAbove = static_cast<tdif_t>(-1);
         bool printedDeltaT = false;
         for(;;)
         {
@@ -96,7 +95,7 @@ static bool processCommand(const char *v)
             if (tm - beg2 > 1000 * 100)
                 break;
             uint16_t v = analogRead(TIMER_RC_PIN);
-            if (tAbove==-1 && (v < 512+20))
+            if (tAbove==static_cast<tdif_t>(-1) && (v < 512+20))
                 tAbove = tm;
             if (!printedDeltaT && v < 512-20)
             {
@@ -149,10 +148,12 @@ static bool processCommand(const char *v)
         charge(TIMER_RC_INT_PIN);
         auto now = millis();
         hello = false;
-        attachInterrupt(digitalPinToInterrupt(TIMER_RC_INT_PIN), sleepPinInterrupt, LOW);
+        auto pinI = digitalPinToInterrupt(TIMER_RC_INT_PIN);
+        Serial.print("pinI="); Serial.println(pinI);
+        attachInterrupt(pinI, sleepPinInterrupt, LOW);
         while(!hello);
         Serial.print("int time="); Serial.println(static_cast<int32_t>(millis()-now));
-        detachInterrupt(digitalPinToInterrupt(TIMER_RC_INT_PIN));    
+        detachInterrupt(pinI);    
     }
     else if (up == 'A')
     {
@@ -164,7 +165,7 @@ static bool processCommand(const char *v)
 
 void loop()
 {
-    unsigned long now = millis();
+    auto now = millis();
 
     // Set up a "buffer" for characters that we'll send:
     static char sendbuffer[62];

@@ -42,7 +42,6 @@
 
 // Include the RFM69 and SPI libraries:
 #define USE_RFM69
-//#define SLEEP_RFM69_ONLY /* for testing only */
 #define USE_SERIAL
 //if a permanent power source is connected, comment out the next line...
 #define TELEMETER_BATTERY_V // ...because the power supply voltage wont ever change.
@@ -109,38 +108,13 @@ namespace {
     class SleepRFM69 : public RFM69
     {
     public:
-        void startAsleep()
+        void setup()
         {
-            digitalWrite(_slaveSelectPin, HIGH);
             pinMode(_slaveSelectPin, OUTPUT);
-            SPI.begin();
-            SPIoff();
+            digitalWrite(_slaveSelectPin, HIGH);
         }
 
-        void SPIoff()
-        {
-            // this command drops the idle current by about 100 uA...maybe
-            // I could not get consistent results. so I left it in
-            writeReg(REG_OPMODE, (readReg(REG_OPMODE) & 0xE3) | RF_OPMODE_SLEEP | RF_OPMODE_LISTENABORT);
-            _mode = RF69_MODE_STANDBY; // force base class do the write
-            sleep();
-            SPI.end();
-
-            // set high impedance for all pins connected to RFM69
-            // ...except VDD, of course
-            pinMode(PIN_SPI_MISO, INPUT);
-            pinMode(PIN_SPI_MOSI, INPUT);
-            pinMode(PIN_SPI_SCK, INPUT);
-            pinMode(PIN_SPI_SS, INPUT);
-            pinMode(_slaveSelectPin, INPUT);
-        }
-        void SPIon()
-        {
-            digitalWrite(_slaveSelectPin, HIGH);
-            pinMode(_slaveSelectPin, OUTPUT);
-            SPI.begin();
-        }
-    };
+     };
     // Create a library object for our RFM69HCW module:
     SleepRFM69 radio;
 #endif
@@ -212,8 +186,9 @@ void setup()
 #endif
 
 #if defined(USE_RFM69)
+    radio.setup();
+    SPI.begin();
 
-#if !defined(SLEEP_RFM69_ONLY)
     // Initialize the RFM69HCW:
     auto nodeId = radioConfiguration.NodeId();
     auto networkId = radioConfiguration.NetworkId();
@@ -229,15 +204,21 @@ void setup()
     {
         enableRadio = true;
         uint32_t freq;
-        if (radioConfiguration.FrequencyKHz(freq))
-            radio.setFrequency(1000 * freq);
-#if defined(USE_SERIAL)
-        Serial.print("Freq= "); Serial.print(radio.getFrequency() / 1000); Serial.println(" KHz");
-#endif   
+        bool haveFreq = radioConfiguration.FrequencyKHz(freq);
         radio.setHighPower(); // Always use this for RFM69HCW
         // Turn on encryption if desired:
         if (ENCRYPT)
             radio.encrypt(radioConfiguration.EncryptionKey());
+        if (haveFreq)
+        {
+            auto setF = 1000 * freq;
+            radio.setFrequency(setF);
+        }
+#if defined(USE_SERIAL)
+        if (haveFreq)
+        {Serial.print("Radio Config Freq="); Serial.println(freq);}
+        Serial.print("Freq= "); Serial.print(radio.getFrequency() / 1000); Serial.println(" KHz");
+#endif   
         EEPROM.get(GATEWAY_NODEID_OFFSET, GatewayNodeId);
         if (GatewayNodeId == 0xFFu)
             GatewayNodeId = 1;
@@ -247,10 +228,6 @@ void setup()
         Serial.println(static_cast<unsigned>(GatewayNodeId));
 #endif
     }
-
-#else
-    radio.startAsleep();
-#endif
 
 #endif
 
@@ -386,7 +363,7 @@ void loop()
     }
 #endif
 
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
+#if defined(USE_RFM69) 
     // RECEIVING
     // In this section, we'll check with the RFM69HCW to see
     // if it has received any packets:
@@ -479,7 +456,7 @@ void loop()
 #if defined(USE_SERIAL)
             Serial.println(buf);
 #endif
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
+#if defined(USE_RFM69) 
             if (enableRadio)
                 radio.sendWithRetry(GatewayNodeId, buf, strlen(buf));
 #endif
@@ -539,7 +516,7 @@ void loop()
 #if defined(USE_SERIAL)
             Serial.println(buf);
 #endif
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
+#if defined(USE_RFM69) 
             if (enableRadio)
                 radio.sendWithRetry(GatewayNodeId, buf, strlen(buf));
 #endif
@@ -586,9 +563,9 @@ namespace {
         pinMode(1, INPUT);
 #endif
 
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
+#if defined(USE_RFM69) 
         if (enableRadio)
-            radio.SPIoff();
+            radio.sleep();
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
@@ -703,10 +680,6 @@ namespace {
         Serial.println(" wakeup");
 #endif
 
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        if (enableRadio)
-            radio.SPIon();
-#endif
 
         return count;
     }
