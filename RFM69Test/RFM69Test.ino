@@ -21,14 +21,16 @@ void setup()
 
     if (ok)
     {
-    auto f = radio.getFrequency();
-    Serial.print("default frequency: ");
-    Serial.println(f);
+        auto f = radio.getFrequency();
+        Serial.print("default frequency: ");
+        Serial.println(f);
 
-    f = 915000000;
-    radio.setFrequency(f);
-    Serial.print("freq after set to 915000KHz");
-    Serial.println(radio.getFrequency());
+        f = 920000000;
+        radio.setFrequency(f);
+        Serial.println("freq after set to 920000KHz");
+        Serial.println(radio.getFrequency());
+
+        radio.readAllRegs();
     }
 
 }
