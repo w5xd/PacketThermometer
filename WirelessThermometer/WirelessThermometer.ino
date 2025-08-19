@@ -32,9 +32,9 @@
 
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
 // except: SI7021 can also be paired with TMP sensor
-#define USE_TMP102
+//#define USE_TMP102
 //#define USE_HIH6130
-//#define USE_TMP175
+#define USE_TMP175
 //#define USE_SI7021
 
 // The TMP102 has temperature only, -40C to 100C
@@ -47,8 +47,11 @@
 //if a permanent power source is connected, comment out the next line...
 #define TELEMETER_BATTERY_V // ...because the power supply voltage wont ever change.
 
-#define TIMER_INIT_ALL_EXCEPT_PCB_REV06  // PCB REV05 and prior, and REV07 and later. For earlier boards, "SetD4PwmCount 0" 
-//#define TIMER_INIT_IS_PCB_REV06_ONLY // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
+#define TIMER_INIT_STYLE_REV05 5    // REV05 of PCB and earlier. R and C across D3 and D4
+#define TIMER_INIT_STYLE_REV06 6  // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
+#define TIMER_INIT_STYLE_REV07 7    // REV07 of PCB. D3 and D4 participate in charge pump
+
+#define TIMER_INIT_STYLE TIMER_INIT_STYLE_REV07 // One of the above
 
 // Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
@@ -178,10 +181,12 @@ void setup()
 #if defined(USE_TMP175)
     Serial.println("PacketThermometer " VERSION_STRING " TMP175");
 #endif
-#if defined(TIMER_INIT_ALL_EXCEPT_PCB_REV06)
-    Serial.println(F("TIMER INIT ALL EXCEPT PC REV06"));
-#elif defined(TIMER_INIT_IS_PCB_REV06_ONLY)
+#if TIMER_INIT_STYLE <= TIMER_INIT_STYLE_REV05
+    Serial.println(F("TIMER INIT R AND C"));
+#elif TIMER_INIT_STYLE == TIMER_INIT_STYLE_REV06
     Serial.println(F("TIMER INIT IS PCB REV06 ONLY"));
+#elif TIMER_INIT_STYLE >= TIMER_INIT_STYLE_REV07
+   Serial.println(F("TIMER INIT IS CHARGE PUMP"));
 #endif
 
     Serial.print("Node ");
@@ -240,8 +245,6 @@ void setup()
 #if defined(USE_SERIAL)
         Serial.print("Gateway Node ID:");
         Serial.println(static_cast<unsigned>(GatewayNodeId));
-        Serial.print("D4 PWM COunt:");
-        Serial.println(static_cast<unsigned>(D4PwmCount));
 #endif
     }
 
@@ -268,6 +271,10 @@ void setup()
 #if defined(USE_SERIAL)
     Serial.print("SleepLoopTimerCount = ");
     Serial.println(SleepLoopTimerCount);
+#if TIMER_INIT_STYLE >= TIMER_INIT_STYLE_REV07
+    Serial.print("D4 PWM COunt:");
+    Serial.println(static_cast<unsigned>(D4PwmCount));
+#endif
 #endif
 
     Wire.end();
@@ -358,8 +365,9 @@ void loop()
         }
 
         // If the input is a carriage return, or the buffer is full:
+        bool eol = (input == '\r') || (input == '\n');
 
-        if ((input == '\r') || (sendlength == sizeof(sendbuffer) - 1)) // CR or buffer full
+        if (eol || (sendlength == sizeof(sendbuffer) - 1)) // CR or buffer full
         {
             sendbuffer[sendlength] = 0;
             if (processCommand(sendbuffer))
@@ -584,8 +592,7 @@ namespace {
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
-        analogReference(EXTERNAL); // This sequence drops idle current by 30uA
-        analogRead(BATTERY_PIN); // doesn't shut down the band gap until we USE ADC
+        ADCSRA = 0; // Turn off ADC
 #endif
 
         // sleep mode power supply current measurements indicate this appears to be redundant
@@ -598,28 +605,35 @@ namespace {
         while (count < SleepLoopTimerCount)
         {
             power_timer0_enable(); // delay() requires this
-#if defined(TIMER_INIT_ALL_EXCEPT_PCB_REV06)
+            // determined empirically using BatteryExtenderTest
+            static const int TIMER_INIT_CHARGE_MSEC = 20; //AA cell internal resistance affects this
+#if (TIMER_INIT_STYLE != TIMER_INIT_STYLE_REV06) 
             pinMode(TIMER_RC_PIN, OUTPUT);
             digitalWrite(TIMER_RC_PIN, HIGH);
-            for (uint8_t i = 0; i < D4PwmCount; i++)
+            for (uint8_t i = 0; ; i++)
             {
-                delay(1);
-                digitalWrite(TIMER_RC_GROUND_PIN, HIGH);
-                delay(1);
                 digitalWrite(TIMER_RC_GROUND_PIN, LOW);
+                delay(TIMER_INIT_CHARGE_MSEC);
+#if TIMER_INIT_STYLE >= TIMER_INIT_STYLE_REV07 // only the charge pump needs to be cycled
+                if (i == D4PwmCount)
+                    break;
+                digitalWrite(TIMER_RC_GROUND_PIN, HIGH);
+                delay(TIMER_INIT_CHARGE_MSEC);
+#else
+                break;
+#endif
             }
-            delay(10); // Charge the C
-#elif defined (TIMER_INIT_IS_PCB_REV06_ONLY)
+#else
             pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
             digitalWrite(TIMER_RC_GROUND_PIN, LOW);
-            delay(10); // Charge the C
+            delay(TIMER_INIT_CHARGE_MSEC); // Charge the C
             pinMode(TIMER_RC_GROUND_PIN, INPUT);
 #endif
+            pinMode(TIMER_RC_PIN, INPUT);
             cli();
             power_timer0_disable(); // timer0 powered down again
             attachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN), sleepPinInterrupt, LOW);
             set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-            pinMode(TIMER_RC_PIN, INPUT);
             sleep_enable();
             sleep_bod_disable();
             sei();
