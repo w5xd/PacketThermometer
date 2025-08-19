@@ -57,7 +57,6 @@
 
 #if defined(USE_RFM69)
 #include <RFM69.h>
-#include <RFM69registers.h>
 #endif
 
 #include <Wire.h>
@@ -104,19 +103,11 @@ namespace {
     // Use ACKnowledge when sending messages (or not):
     const bool USEACK = true; // Request ACKs or not
     const int RFM69_RESET_PIN = 9;
+    const int RFM69_CHIP_SELECT_PIN = 10;
+    const int RFM69_INT_PIN = 2;
  
-    class SleepRFM69 : public RFM69
-    {
-    public:
-        void setup()
-        {
-            pinMode(_slaveSelectPin, OUTPUT);
-            digitalWrite(_slaveSelectPin, HIGH);
-        }
-
-     };
     // Create a library object for our RFM69HCW module:
-    SleepRFM69 radio;
+    RFM69 radio(RFM69_CHIP_SELECT_PIN, RFM69_INT_PIN, true);
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
@@ -186,7 +177,8 @@ void setup()
 #endif
 
 #if defined(USE_RFM69)
-    radio.setup();
+    pinMode(RFM69_CHIP_SELECT_PIN, OUTPUT);
+    digitalWrite(RFM69_CHIP_SELECT_PIN, HIGH);
     SPI.begin();
 
     // Initialize the RFM69HCW:
@@ -216,7 +208,7 @@ void setup()
         }
 #if defined(USE_SERIAL)
         if (haveFreq)
-        {Serial.print("Radio Config Freq="); Serial.println(freq);}
+            {Serial.print("Radio Config Freq="); Serial.println(freq);}
         Serial.print("Freq= "); Serial.print(radio.getFrequency() / 1000); Serial.println(" KHz");
 #endif   
         EEPROM.get(GATEWAY_NODEID_OFFSET, GatewayNodeId);

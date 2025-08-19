@@ -6,9 +6,11 @@
 */
 
 namespace {
-    const int TIMER_RC_GROUND_PIN = 15;
+    // FWIW: Don't bother running this test program on Teensy. Its input pins do not have the
+    // multi-megohm input impedance that the AVR processors have, and is required.
+    const int TIMER_RC_GROUND_PIN = 4;
     const int TIMER_RC_PIN = A0; // sleep uProc using RC circuit on this pin
-    const int TIMER_RC_INT_PIN = 14; //Pro Mini has no common analog + interrupt pin. must rewire for this
+    const int TIMER_RC_INT_PIN = 3; //Pro Mini has no common analog + interrupt pin. must rewire for this
 }
 
 void setup()
@@ -92,7 +94,7 @@ static bool processCommand(const char *v)
         for(;;)
         {
             auto tm = millis();
-            if (tm - beg2 > 1000 * 100)
+            if (tm - beg2 > 1000l * 100)
                 break;
             uint16_t v = analogRead(TIMER_RC_PIN);
             if (tAbove==static_cast<tdif_t>(-1) && (v < 512+20))
@@ -165,8 +167,6 @@ static bool processCommand(const char *v)
 
 void loop()
 {
-    auto now = millis();
-
     // Set up a "buffer" for characters that we'll send:
     static char sendbuffer[62];
     static int sendlength = 0;
