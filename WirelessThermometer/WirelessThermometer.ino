@@ -666,12 +666,16 @@ namespace {
         ResetAnalogReference();
 #endif
 
+#if defined(USE_RFM69) 
+        if (enableRadio)
+            radio.setMode(RF69_MODE_STANDBY);
+#endif
+
 #if defined(USE_SERIAL)
         Serial.begin(9600);
         Serial.print(count, DEC);
         Serial.println(" wakeup");
 #endif
-
 
         return count;
     }
