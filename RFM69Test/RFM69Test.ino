@@ -11,10 +11,10 @@
 
 void setup()
 {
-    Serial.begin(9600);
-    Serial.println("RFM69 Test");
     pinMode(RFM69_CHIP_SELECT_PIN, OUTPUT);
     digitalWrite(RFM69_CHIP_SELECT_PIN, HIGH);
+    Serial.begin(9600);
+    Serial.println("RFM69 Test");
     SPI.begin();
 
     radioOK = radio.initialize(RF69_915MHZ, 127, 1);
@@ -32,7 +32,7 @@ void setup()
         Serial.println("freq after set to 920000KHz");
         Serial.println(radio.getFrequency());
 
-        radio.readAllRegs();
+        //radio.readAllRegs();
     }
 
 }
@@ -42,8 +42,10 @@ void loop()
     auto now = millis();
     static auto testStartTime = now;
     static enum class State_t {IDLE, SCOPE_LOOP} state = State_t::IDLE;
+
     if (radioOK)
     {
+        static bool printOnce;
         if (Serial.available() > 0)
         {
             char input = Serial.read();
@@ -52,15 +54,28 @@ void loop()
                 case 'T':
                 case 't':
                     if (state == State_t::IDLE)
+                    {
                         state = State_t::SCOPE_LOOP;
+                        Serial.println("testing");
+                    }
                     break;
                 case 'C':
                 case 'c':
                     if (state == State_t::SCOPE_LOOP)
+                    {
                         state = State_t::IDLE;
+                        Serial.println("Test stopped");
+                    }
+                    break;
+                case 'p':
+                case 'P':
+                    if (state == State_t::SCOPE_LOOP)
+                        printOnce = true;
                     break;
                 default:
-                    Serial.println('?');
+                    if (!isspace(input))
+                        Serial.println('?');
+                    break;
             }
         }
 
@@ -72,7 +87,13 @@ void loop()
                 {
                     testStartTime = now;
                     radio.setFrequency(920000000);
-                    radio.getFrequency();
+                    auto f = radio.getFrequency();
+                    if (printOnce)
+                    {
+                        Serial.print("Set: 920000000 Read:");
+                        Serial.println(f);
+                        printOnce = false;
+                    }
                 }
                 break;
             case State_t::IDLE:
