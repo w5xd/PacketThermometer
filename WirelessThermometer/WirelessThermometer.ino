@@ -535,7 +535,7 @@ void loop()
 }
 
 #if !defined(SLEEP_WITH_TIMER2)
-void sleepPinInterrupt()	// requires 1uF parallel 10M between two pins
+void sleepPinInterrupt()	// requires R and C parallel between two pins, depending on PCB rev
 {
     detachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN));
 }
@@ -561,7 +561,7 @@ namespace {
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
-        ADCSRA = 0; // Turn off ADC
+        ADCSRA = 0; // Turn off ADC. credit to https://gist.github.com/JChristensen/5616922
 #endif
 
         // sleep mode power supply current measurements indicate this appears to be redundant
@@ -606,7 +606,7 @@ namespace {
             sleep_enable();
             sleep_bod_disable();
             sei();
-            sleep_cpu(); // Power supply measured: About 250uA rising to about 560 uA on REV05 and lower
+            sleep_cpu(); // Power supply measured: About 1 to 2 uA rising to about 300 uA as RC approaches Vdd/2 on REV05 and lower
             sleep_disable();
             sei();
             count += 1;
