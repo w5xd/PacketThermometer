@@ -29,32 +29,34 @@ when set to its default 14 bit temperature digitization.
 
 Battery Extender
 
-REV07 and later have this Battery Extender Circuit. In the prior versions of the PCB (REV05 and earlier), the sleep time was determined by a 
-single R and C on the INT pin (D3 on the Arduino). Those components were
+REV07 and later have the Battery Extender Circuit. In the prior versions of the PCB (REV05 and earlier), the sleep time is
+determined by a 
+single R and C on the INT pin (D3 on the Arduino). Those components can be
 chosen for an RC delay of as much as 100 seconds (10M times 10uF). That slow moving input stays close to
-Vdd/2 for an extended period of many dozens of seconds, which in turn causes the Atmega328 to draw up to about 
+Vcc/2 for an extended period, which in turn causes the Atmega328 to draw up to about 
 500uA above its minimal
-sleep current for that length of time (See the Atmega328P specifications.)
+sleep current for an extended length of time (See the Atmega328P specifications.)
 The Battery Extender eliminates the long period of excess current draw by 
-accelerating the pass through Vcc/2. The circuit depends on a 
+accelerating the decay through Vcc/2. The circuit depends on a 
 p-channel MOSFET with a low
-gate threshold, Q12. A threshold specification of significantly smaller than -Vdd/2 is required (i.e. much less
+gate threshold. A threshold specification of significantly smaller than -Vdd/2 is required (i.e. much less
 than -1.65 volts.) The nominal threshold of the specified DMP1045U part
-is -700mV. Q12 turns on when the RC circuit at C11, R11 discharges that far
-below Vcc. When Q12 turns on, 
-it causes Q13 to quickly truncate the R11/C11 decay, which then
+is -700mV. That MOSFET, Q12, turns on when the RC circuit at C11, R11 discharges that far
+below Vcc. This in turn activates Q13 to quickly truncate the R11/C11 decay through R12, which then
 crosses Vcc/2 in a few milliseconds. The other pair of MOSFETs, Q10 and Q11, implements a charge pump so that the
 RC circuit discharges from as much as double Vcc (about 6V) to get a much longer time 
 delay than is feasible without it.
 The capacitors in the Battery Extender circuit can be identical, but must be ceramic 
 (for very low leakage current
-compared to polarized capacitors.) An LTSpice model is published here for the Battery Extender.
+compared to polarized capacitors.) Here is the modeled 
+voltage at pin D3 from the LTSpice model.
 
 <p align='center'><a href='BatteryExtenderTrace.pdf'><img width="75%" src='BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
 
 
-If the builder desires, you may revert to the REV05 behavior by omitting all the Battery Extender components
-except for  R11 and C11.  Install a jumper in the holes provided at D12.
+Later PCB versions can be reverted to the REV05 single R and C timer by omitting all the Battery Extender components
+except for  R11 and C11, along with installing a jumper in the holes provided at D12. The
+appropriate #define in the ino file for REV05 must be uploaded.
 (Why is REV06 not mentioned? It was a failed attempt to extend battery life using an external gate to detect the
 decaying RC voltage crossing toward zero. The gate worked no better than the Atmega328 input.)
 
@@ -71,7 +73,8 @@ The parts list for building the PCB, including the Battery Extender:
 https://www.mouser.com/Tools/Project/Share?AccessID=548d5f9ecc</a>. The headers and battery holders,
 and any hardware needed to mount in an enclosure are also needed.
 
-While the PCB has multiple positions for placing sensors, the sketch only reports one of them.
+While the PCB has multiple positions for placing temperature sensors, the sketch reports temperature
+from just one of them.
 The board position for the TMP102 accommodates that chip's 0.5mm lead spacing. That small spacing
 is challenging to hand assemble. I succeeded on three boards, but in the first two attempts, I had
 to hand rework after the SMD oven bake resulted in one or more leads not connected. 
@@ -85,7 +88,7 @@ before soldering the Pro Mini in place. This order of assembly is <i>required</i
 of installing this PCB in the 3D printed enclosure:
 <ol>
 <li>Prepare an Arduino with headers that can be jumped to headers on the PCB at the Arduino
-position. If you are going to use a 5V Arduino (like an Uno or Mega) then you MUST omit
+position. If you are going to use a 5V Arduino (like an Uno or Mega) then you <i>must</i> omit
 all the 3.3 volt parts in the following SMD baking step!.
 <li>Bake all the Battery Extender SMD components onto the PCB. (Do not bake  the RFM69 
 transceiver. Install it after all the other tests.) If your test Arduino
@@ -113,29 +116,31 @@ mounted <i>except</i> the Pro Mini
 Power options
 <ul>
 <li>The circuit is simple and can be haywired without a PCB. Its the builder's choice.
-<li>The PCB has positions for two AA cells. And the PCB has two hole configurations for
-cell holders. Either one two-cell keystone 2462 holder, or two one-cell keystone 2460 holders. 
-On the Arduinio Mini Pro, 3.3V version, solder jumper SJ1 is removed to disable
-the on-board volatage regulator and, especially, the power drain from its LED.
+<li>The PCB has positions for two AA cells. It has hole configurations for
+cell holders. Either a two-cell keystone 2462 holder or two one-cell keystone 2460 
+holders fit. In PCB REV08 and later, the 2462 fits in either of two orientations that are 180 degrees rotated.
+<li>On the Arduinio Mini Pro, 3.3V version, remove solder jumper SJ1 to disable
+the on-board volatage regulator and, especially, the power drain from its LED. 
 <li>Or, a PJ-202A 5.5mm x 2.1mm power jack may be installed on the PCB, which routes up to 12VDC
 to the regulator on the Pro Mini. The PCB has holes to accommodate the jack on either
 the PCB's top or bottom.
 </ul>
 
 Of the sleep options available at compile time in this sketch, the best
-battery life is obtained an RC circuit.
+battery life is obtained using an external circuit as opposed to the built in
+Atmega timer support. A single resistor and capacitor are supported in
+all PCB revisions, and
 REV07 and later have the Battery Extender circuit described above.
-SMD components of size 1206 and 0805 are easy enough to solder on. 
+SMD components of size 1206 and 0805 are easy enough to solder by hand. 
 A pair of AAA lithium cells
 powered one of these for 9 months (and counting) with SetDelayLoopCount 
 configured such that updates occur about every 11 minutes. A different unit
 configured for 5 minute updates lasted 6 months. AA cells are rated
 to about twice the Amp-Hour life of the equivalent chemistry AAA cells.
 
-A 2.7K resistor is from A0 to ground for the purpose of 
-telemetering the battery volatage. 
+A 2.7K resistor is from A0 to ground for the purpose of telemetering the battery volatage. 
 
-The system is powered with a 2 cell AA (or AAA) lithium battery wired to VCC (not RAW).
+The system is powered with the 2 cell battery wired to VCC (not RAW).
 
 The required SetFrequencyBand settings are documented in RFM69.h (91 in USA). The Arduino
 can be programmed through either its serial interface or the ISP pins on the PCB. But
