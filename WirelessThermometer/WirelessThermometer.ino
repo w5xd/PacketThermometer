@@ -36,6 +36,7 @@
 //#define USE_HIH6130
 #define USE_TMP175
 //#define USE_SI7021
+//#define USE_SHT41
 
 // The TMP102 has temperature only, -40C to 100C
 // The HIH6130 has temperature and relative humidity, -20C to 85C
@@ -70,6 +71,9 @@
 #if defined(USE_SI7021)
 #include "Si7021.h"
 #endif
+#if defined(USE_SHT41)
+#include "Sht41.h"
+#endif
 
 #define VERSION_STRING "REV 15"
 
@@ -95,6 +99,9 @@ namespace {
 #endif
 #if defined(USE_SI7021)
     SI7021 si7021;
+#endif
+#if defined(USE_SHT41)
+    SHT41 sht41;
 #endif
 
 #if defined(USE_RFM69)
@@ -146,6 +153,9 @@ void setup()
 #if defined(USE_TMP175)
     Serial.println("PacketThermometer " VERSION_STRING " TMP175");
 #endif
+#if defined(USE_SHT41)
+    Serial.println("PacketThermometer " VERSION_STRING " SHT41");
+#endif
 #if TIMER_INIT_STYLE <= TIMER_INIT_STYLE_REV05
     Serial.println(F("TIMER INIT R AND C"));
 #elif TIMER_INIT_STYLE == TIMER_INIT_STYLE_REV06
@@ -174,6 +184,9 @@ void setup()
     tmp175.startReadTemperature();
 #endif
 #if defined(USE_SI7021)
+#endif
+#if defined(USE_SHT41)
+        sht41.startReadTemperature();
 #endif
 
 #if defined(USE_RFM69)
@@ -214,7 +227,6 @@ void setup()
         EEPROM.get(GATEWAY_NODEID_OFFSET, GatewayNodeId);
         if (GatewayNodeId == 0xFFu)
             GatewayNodeId = 1;
-        EEPROM.get(D4PWMCOUNT, D4PwmCount);
 #if defined(USE_SERIAL)
         Serial.print("Gateway Node ID:");
         Serial.println(static_cast<unsigned>(GatewayNodeId));
@@ -222,6 +234,8 @@ void setup()
     }
 
 #endif
+
+    EEPROM.get(D4PWMCOUNT, D4PwmCount);
 
 #if defined(TELEMETER_BATTERY_V)
     ResetAnalogReference();
@@ -414,7 +428,7 @@ void loop()
 
         Wire.begin();
 
-#if (defined(USE_TMP102) || defined(USE_TMP175)) && !defined(USE_SI7021)
+#if (defined(USE_TMP102) || defined(USE_TMP175)) && !defined(USE_SI7021) && !defined(USE_SHT41)
         {
 #if defined(USE_TMP102)
             auto temperature256 = tmp102.finishReadTempCx256();
@@ -454,7 +468,7 @@ void loop()
 #endif
         }
 #endif
-#if defined(USE_HIH6130) || defined(USE_SI7021)
+#if defined(USE_HIH6130) || defined(USE_SI7021) || defined(USE_SHT41)
         {
             float humidity(0), temperature(0);
 #if defined(USE_HIH6130)
@@ -481,6 +495,13 @@ void loop()
 #endif
             si7021.startReadHumidity();
             humidity = si7021.readHumidity();
+#elif (defined(USE_SHT41))
+            temperature = sht41.finishReadTempCx256() / 256.f;
+            humidity = sht41.humidityX256() / 256.f;
+            if (humidity < 0)
+                humidity = 0;
+            if (humidity > 100.f)
+                humidity = 100.f;
 #endif
 
             char sign = '+';
@@ -530,6 +551,9 @@ void loop()
         tmp175.startReadTemperature();
 #endif
 #if defined(USE_SI7021)
+#endif
+#if defined(USE_SHT41)
+        sht41.startReadTemperature();
 #endif
     }
 }
