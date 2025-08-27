@@ -17,11 +17,11 @@ The pin positions on the various Sparkfun breakout boards differ, which
 is why there are several hole patterns on the PCB for headers</li><a href='https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide'>https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide.</a>
 <li>HIH6131, measures humidity as well as temperature. The PCB layout puts it at i2c 0x27.
 <a href='https://www.sparkfun.com/products/11295'>HIH6130</a>
-has
-humidity in addition to temperature, but is limited to -20C to 85C.</li>
+has humidity in addition to temperature, but is limited to -20C to 85C.</li>
 <li>Si7021, measures humidity and temperature. It is fixed at i2c 
 address 0x40. It has a rather coarse temperature readout--about 1 degree Farenheit resolution
 when set to its default 14 bit temperature digitization.
+<li>SHT40. measures humdity and temperature. Address 0x44.
 <li>TMP175. Temperature only. PCB leaves all address pins floating, therefore its i2c address is 0x37.
 
 </ul>
@@ -109,13 +109,15 @@ SetD4PwmCount up to 255 should sleep for more than 65 seconds.
 <li>If you baked a temperature sensor, it should also be printed out on the Serial port.
 <li>Once the Battery Extender circuit works as predicted, the remaing top side PCB components should be
 mounted <i>except</i> the Pro Mini
-<li>Solder the AA cell holder(s) to the PCB bottom
+<li>Solder the AA cell holder(s) to the PCB bottom. In REV08 of the PCB and later, and using
+the Keystone 2462 double AA holder, these last two items can be in either order.
+Otherwise, you had better solder the Pro Mini last.
 <li>Finally, the Pro Mini may be soldered onto the headers installed in step (3) above.
 </ol>
 
 Power options
 <ul>
-<li>The circuit is simple and can be haywired without a PCB. Its the builder's choice.
+<li>The circuit is simple and can be haywired without a PCB. 
 <li>The PCB has positions for two AA cells. It has hole configurations for
 cell holders. Either a two-cell keystone 2462 holder or two one-cell keystone 2460 
 holders fit. In PCB REV08 and later, the 2462 fits in either of two orientations that are 180 degrees rotated.
@@ -129,7 +131,7 @@ the PCB's top or bottom.
 Of the sleep options available at compile time in this sketch, the best
 battery life is obtained using an external circuit as opposed to the built in
 Atmega timer support. A single resistor and capacitor are supported in
-all PCB revisions, and
+all PCB revisions, while
 REV07 and later have the Battery Extender circuit described above.
 SMD components of size 1206 and 0805 are easy enough to solder by hand. 
 A pair of AAA lithium cells
