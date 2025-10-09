@@ -32,11 +32,16 @@
 
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
 // except: SI7021 can also be paired with TMP sensor
-//#define USE_TMP102
+//#define USE_TMP102_PCB
+#define USE_TMP102_BREAKOUT
 //#define USE_HIH6130
-#define USE_TMP175
+//#define USE_TMP175
 //#define USE_SI7021
 //#define USE_SHT41
+
+#if defined(USE_TMP102_PCB) || defined(USE_TMP102_BREAKOUT)
+#define USE_TMP102
+#endif
 
 // The TMP102 has temperature only, -40C to 100C
 // The HIH6130 has temperature and relative humidity, -20C to 85C
@@ -51,7 +56,7 @@
 #define TIMER_INIT_STYLE_REV06 6  // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
 #define TIMER_INIT_STYLE_REV07 7    // REV07 of PCB. D3 and D4 participate in charge pump
 
-#define TIMER_INIT_STYLE TIMER_INIT_STYLE_REV07 // One of the above
+#define TIMER_INIT_STYLE TIMER_INIT_STYLE_REV05 // One of the above
 
 // Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
@@ -75,7 +80,7 @@
 #include "Sht41.h"
 #endif
 
-#define VERSION_STRING "REV 15"
+#define VERSION_STRING "REV 16"
 
 namespace {
     const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
@@ -87,9 +92,10 @@ namespace {
 
     const float MAX_VALID_TEMPERATURE_C = 80.f;
 
-#if defined(USE_TMP102) // The TMP102 is documented to be backwards compatible with TMP75 i2c commands.
+#if defined(USE_TMP102_PCB) // The TMP102 is documented to be backwards compatible with TMP75 i2c commands.
     TMP175 tmp102(0x49, 30); /* PCB layout puts tmp102 at 0x49.*/
-    //TMP175 tmp102(0x48, 30); /* TMP102 breakout board gives 0x48*/
+#elif defined(USE_TMP102_BREAKOUT)
+    TMP175 tmp102(0x48, 30); /* TMP102 breakout board gives 0x48*/
 #endif
 #if defined(USE_HIH6130)
     HomeAutomationTools::HIH6130 sensor0;
@@ -585,6 +591,7 @@ namespace {
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
+        auto savedADC = ADCSRA;
         ADCSRA = 0; // Turn off ADC. credit to https://gist.github.com/JChristensen/5616922
 #endif
 
@@ -687,6 +694,7 @@ namespace {
         power_all_enable();
 
 #if defined(TELEMETER_BATTERY_V)
+        ADCSRA = savedADC;
         ResetAnalogReference();
 #endif
 
