@@ -41,7 +41,7 @@ public:
                 tempCtimes256 |= v;
             }
             else
-                return 0xFFFF;
+                return 0x7FFF;
         }
         return tempCtimes256;
     }
