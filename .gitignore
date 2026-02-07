@@ -1,3 +1,9 @@
 Release
-EP*/
+Debug
+REV0*/
 *~
+*.swp
+.vs/
+*.log
+*.raw
+*.net

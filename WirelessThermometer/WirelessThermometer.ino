@@ -1,3 +1,17 @@
+/* This sketch is for an Arduino wired to
+** a) RFM69 radio transceiver
+** b) temperature sensor or combination temperature/humidity sensor
+**
+** This sketch is accompanied in its git repository by a design for a 1.7" by 2.5" PCB.
+** That PCB makes the connections more convenient, and the packaging solid, but its
+** also workable to simply use the sparkfun breakout packaging of the RFM69 and either
+** the TMP102 or the Si7021 and haywire the three together with a 2 cell battery.
+**
+** This sketch has compile time #define's for the various i2c sensors. While multiple
+** sensors can be compiled in, the #define's in this sketch arrange for only one of the
+** sensor readings to be telemetered.
+*/
+
 #include <RadioConfiguration.h>
 #include <SPI.h>
 #include <EEPROM.h>
@@ -12,130 +26,118 @@
 // Parts of the code in this sketch are taken from these sparkfun pages,
 // as are all the wiring instructions:
 // https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide
-// https://learn.sparkfun.com/tutorials/tmp102-digital-temperature-sensor-hookup-guide
 
 // Uses the RFM69 library by Felix Rusu, LowPowerLab.com
 // Original library: https://github.com/LowPowerLab/RFM69
 
-// code only supports a TMP102 sensor or HIH6130 but not both
-//#define USE_TMP102
-// The TMP102 has temperature only, -40C to 100C
-#define USE_HIH6130
-// The HIH6130 has temperature and relative humidity, -20C to 85C
+// code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
+// except: SI7021 can also be paired with TMP sensor
+//#define USE_TMP102_PCB
+#define USE_TMP102_BREAKOUT
+//#define USE_HIH6130
+//#define USE_TMP175
+//#define USE_SI7021
+//#define USE_SHT41
 
-//#define SLEEP_TMP102_ONLY /* for testing only*/
+#if defined(USE_TMP102_PCB) || defined(USE_TMP102_BREAKOUT)
+#define USE_TMP102
+#endif
+
+// The TMP102 has temperature only, -40C to 100C
+// The HIH6130 has temperature and relative humidity, -20C to 85C
 
 // Include the RFM69 and SPI libraries:
 #define USE_RFM69
-//#define SLEEP_RFM69_ONLY /* for testing only */
 #define USE_SERIAL
-#define TELEMETER_BATTERY_V
+//if a permanent power source is connected, comment out the next line...
+#define TELEMETER_BATTERY_V // ...because the power supply voltage wont ever change.
+
+#define TIMER_INIT_STYLE_REV05 5    // REV05 of PCB and earlier. R and C across D3 and D4
+#define TIMER_INIT_STYLE_REV06 6  // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
+#define TIMER_INIT_STYLE_REV07 7    // REV07 of PCB. D3 and D4 participate in charge pump
+
+#define TIMER_INIT_STYLE TIMER_INIT_STYLE_REV05 // One of the above
 
 // Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
 
 #if defined(USE_RFM69)
 #include <RFM69.h>
-#include <RFM69registers.h>
 #endif
 
-#if defined(USE_TMP102)
 #include <Wire.h>
-#include "TMP102Helper.h" // Used to send and receive specific information from our sensor
-#elif defined(USE_HIH6130)
+
+#if defined(USE_HIH6130)
 #include "HIH6130Helper.h"
 #endif
+#if defined(USE_TMP175) || defined(USE_TMP102)
+#include "Tmp175.h"
+#endif
+#if defined(USE_SI7021)
+#include "Si7021.h"
+#endif
+#if defined(USE_SHT41)
+#include "Sht41.h"
+#endif
 
-#define VERSION_STRING "REV 10"
+#define VERSION_STRING "REV 16"
 
 namespace {
-const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
-const int TIMER_RC_GROUND_PIN = 4;
-const int TIMER_RC_PIN = 3; // sleep uProc using RC circuit on this pin
+    const int BATTERY_PIN = A0; // digitize (fraction of) battery voltage
+    const int TIMER_RC_GROUND_PIN = 4;
+    const int TIMER_RC_PIN = 3; // sleep uProc using RC circuit on this pin
 
-const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen Serial/RF for this long
-const unsigned long NormalListenAfterTransmit = 300;// after TX, go to RX for this long
+    const unsigned long FirstListenAfterTransmitMsec = 20000;// at system reset, listen Serial/RF for this long
+    const unsigned long NormalListenAfterTransmit = 300;// after TX, go to RX for this long
 
-#if defined(USE_TMP102)
-// Connections to TMP102
-// VCC = 3.3V
-// GND = GND
-// SDA = A4
-// SCL = A5
-const int ALERT_PIN = A3;
+    const float MAX_VALID_TEMPERATURE_C = 80.f;
 
-HomeAutomationTools::TMP102 sensor0(0x48); // Initialize sensor at I2C address 0x48
-// Sensor address can be changed with an external jumper to:
-// ADD0 - Address
-//  VCC - 0x49
-//  SDA - 0x4A
-//  SCL - 0x4B
-#elif defined(USE_HIH6130)
-HomeAutomationTools::HIH6130 sensor0;
-/* The connection is SDA(A4), SCL(A5), VDD and GND to the HIH6130 */
+#if defined(USE_TMP102_PCB) // The TMP102 is documented to be backwards compatible with TMP75 i2c commands.
+    TMP175 tmp102(0x49, 30); /* PCB layout puts tmp102 at 0x49.*/
+#elif defined(USE_TMP102_BREAKOUT)
+    TMP175 tmp102(0x48, 30); /* TMP102 breakout board gives 0x48*/
+#endif
+#if defined(USE_HIH6130)
+    HomeAutomationTools::HIH6130 sensor0;
+#endif
+#if defined(USE_TMP175)
+    TMP175 tmp175(0x37); /* PCB layout puts tmp175 at 0x37*/
+#endif
+#if defined(USE_SI7021)
+    SI7021 si7021;
+#endif
+#if defined(USE_SHT41)
+    SHT41 sht41;
 #endif
 
 #if defined(USE_RFM69)
-// RFM69 frequency, uncomment the frequency of your module:
-
-//#define FREQUENCY   RF69_433MHZ
-#define FREQUENCY     RF69_915MHZ
-
 // AES encryption (or not):
-const bool ENCRYPT = true; // Set to "true" to use encryption
-// Use ACKnowledge when sending messages (or not):
-const bool USEACK = true; // Request ACKs or not
-const int RFM69_RESET_PIN = 9;
-const uint8_t GATEWAY_NODEID = 1;
-
-class SleepRFM69 : public RFM69
-{
-public:
-	void startAsleep()
-	{
-	  digitalWrite(_slaveSelectPin, HIGH);
-	  pinMode(_slaveSelectPin, OUTPUT);
-	  SPI.begin();
-	  SPIoff();
-	}
-
-	void SPIoff()
-	{
-		// this command drops the idle current by about 100 uA...maybe
-		// I could not get consistent results. so I left it in
-		writeReg(REG_OPMODE, (readReg(REG_OPMODE) & 0xE3) | RF_OPMODE_SLEEP | RF_OPMODE_LISTENABORT);
-		 _mode = RF69_MODE_STANDBY; // force base class do the write
-		sleep();
-        SPI.end();
-
-        // set high impedance for all pins connected to RFM69
-        // ...except VDD, of course
-	    pinMode(PIN_SPI_MISO, INPUT);
-	    pinMode(PIN_SPI_MOSI, INPUT);
-	    pinMode(PIN_SPI_SCK, INPUT);
-	    pinMode(PIN_SPI_SS, INPUT);
-	    pinMode(_slaveSelectPin, INPUT);
-	}
-	void SPIon()
-	{
-	  digitalWrite(_slaveSelectPin, HIGH);
-	  pinMode(_slaveSelectPin, OUTPUT);
-	  SPI.begin();
-	}
-};
-// Create a library object for our RFM69HCW module:
-SleepRFM69 radio;
+    const bool ENCRYPT = true; // Set to "true" to use encryption
+    // Use ACKnowledge when sending messages (or not):
+    const bool USEACK = true; // Request ACKs or not
+    const int RFM69_RESET_PIN = 9;
+    const int RFM69_CHIP_SELECT_PIN = 10;
+    const int RFM69_INT_PIN = 2;
+ 
+    // Create a library object for our RFM69HCW module:
+    RFM69 radio(RFM69_CHIP_SELECT_PIN, RFM69_INT_PIN, true);
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
-void ResetAnalogReference();
+    void ResetAnalogReference();
 #endif
 
-RadioConfiguration radioConfiguration;
-bool enableRadio = false;
-unsigned long TimeOfWakeup;
-const unsigned MAX_SLEEP_LOOP_COUNT = 5000; // a couple times per day is minimum check-in interval
-unsigned SleepLoopTimerCount = 30; // approx 10 seconds per Count
+    RadioConfiguration radioConfiguration;
+    bool enableRadio = false;
+    unsigned long TimeOfWakeup;
+    const unsigned MAX_SLEEP_LOOP_COUNT = 5000; // a couple times per day is minimum check-in interval
+    unsigned SleepLoopTimerCount = 30; // approx 10 seconds per Count
+    uint8_t GatewayNodeId = 1;
+    uint8_t D4PwmCount = 100; // range is 0 to 255
+    enum EepromAddress_t {SLEEP_TIMER_COUNT_OFFSET = RadioConfiguration::TOTAL_EEPROM_USED,
+            GATEWAY_NODEID_OFFSET = SLEEP_TIMER_COUNT_OFFSET + sizeof(SleepLoopTimerCount),
+            D4PWMCOUNT = GATEWAY_NODEID_OFFSET + sizeof(GatewayNodeId),
+            THERMOMETER_EEPROM_USED = D4PWMCOUNT + sizeof(D4PwmCount)};
 }
 
 void setup()
@@ -145,10 +147,27 @@ void setup()
 
     Serial.begin(9600);
 
+#if defined(USE_SI7021)
+    Serial.println("PacketThermometer " VERSION_STRING " SI7021");
+#endif
 #if defined(USE_TMP102)
     Serial.println("PacketThermometer " VERSION_STRING " TMP102");
-#elif defined(USE_HIH6130)
+#endif
+#if defined(USE_HIH6130)
     Serial.println("PacketThermometer " VERSION_STRING " HIH6130");
+#endif
+#if defined(USE_TMP175)
+    Serial.println("PacketThermometer " VERSION_STRING " TMP175");
+#endif
+#if defined(USE_SHT41)
+    Serial.println("PacketThermometer " VERSION_STRING " SHT41");
+#endif
+#if TIMER_INIT_STYLE <= TIMER_INIT_STYLE_REV05
+    Serial.println(F("TIMER INIT R AND C"));
+#elif TIMER_INIT_STYLE == TIMER_INIT_STYLE_REV06
+    Serial.println(F("TIMER INIT IS PCB REV06 ONLY"));
+#elif TIMER_INIT_STYLE >= TIMER_INIT_STYLE_REV07
+   Serial.println(F("TIMER INIT IS CHARGE PUMP"));
 #endif
 
     Serial.print("Node ");
@@ -162,73 +181,67 @@ void setup()
     Serial.println(" ready");
 #endif
 
+    Wire.begin();
+
 #if defined(USE_TMP102)
-    pinMode(ALERT_PIN, INPUT);  // Declare alertPin as an input
-    sensor0.begin();  // Join I2C bus
-    // Initialize sensor0 settings
-    sensor0.setOneShotMode(); // set low power mode
-
-    // These settings are saved in the sensor, even if it loses power
-
-    // set the number of consecutive faults before triggering alarm.
-    // 0-3: 0:1 fault, 1:2 faults, 2:4 faults, 3:6 faults.
-    sensor0.setFault(0);  // Trigger alarm immediately
-
-    // set the polarity of the Alarm. (0:Active LOW, 1:Active HIGH).
-    sensor0.setAlertPolarity(0); // Active LOW
-
-    // set the sensor in Comparator Mode (0) or Interrupt Mode (1).
-    sensor0.setAlertMode(0); // Comparator Mode.
-
-    // set the Conversion Rate (how quickly the sensor gets a new reading)
-    //0-3: 0:0.25Hz, 1:1Hz, 2:4Hz, 3:8Hz
-    sensor0.setConversionRate(2);
-
-    //set Extended Mode.
-    //0:12-bit Temperature(-55C to +128C) 1:13-bit Temperature(-55C to +150C)
-    sensor0.setExtendedMode(0);
-
-    //set T_HIGH, the upper limit to trigger the alert on
-    sensor0.setHighTempC(127); // set T_HIGH in C
-
-    //set T_LOW, the lower limit to shut turn off the alert
-    sensor0.setLowTempC(127); // set T_LOW in C
-
-    sensor0.end();
+    tmp102.startReadTemperature();
+#endif
+#if defined(USE_TMP175)
+    tmp175.startReadTemperature();
+#endif
+#if defined(USE_SI7021)
+#endif
+#if defined(USE_SHT41)
+        sht41.startReadTemperature();
 #endif
 
 #if defined(USE_RFM69)
+    pinMode(RFM69_CHIP_SELECT_PIN, OUTPUT);
+    digitalWrite(RFM69_CHIP_SELECT_PIN, HIGH);
+    SPI.begin();
 
-#if !defined(SLEEP_RFM69_ONLY)
     // Initialize the RFM69HCW:
     auto nodeId = radioConfiguration.NodeId();
     auto networkId = radioConfiguration.NetworkId();
     auto fbId = radioConfiguration.FrequencyBandId();
     auto ok = nodeId != 0xff &&
-            networkId != 0xff &&
-            fbId != 0xff &&
-            radio.initialize(fbId, nodeId, networkId);
+        networkId != 0xff &&
+        fbId != 0xff &&
+        radio.initialize(fbId, nodeId, networkId);
 #if defined(USE_SERIAL)
     Serial.println(ok ? "Radio init OK" : "Radio init failed");
+#endif
     if (ok)
     {
         enableRadio = true;
         uint32_t freq;
-        if (radioConfiguration.FrequencyKHz(freq))
-            radio.setFrequency(1000*freq);
-        Serial.print("Freq= "); Serial.print(radio.getFrequency()/1000); Serial.println(" KHz");
-    }
+        bool haveFreq = radioConfiguration.FrequencyKHz(freq);
+        radio.setHighPower(); // Always use this for RFM69HCW
+        // Turn on encryption if desired:
+        if (ENCRYPT)
+            radio.encrypt(radioConfiguration.EncryptionKey());
+        if (haveFreq)
+        {
+            auto setF = 1000 * freq;
+            radio.setFrequency(setF);
+        }
+#if defined(USE_SERIAL)
+        if (haveFreq)
+            {Serial.print("Radio Config Freq="); Serial.println(freq);}
+        Serial.print("Freq= "); Serial.print(radio.getFrequency() / 1000); Serial.println(" KHz");
 #endif   
+        EEPROM.get(GATEWAY_NODEID_OFFSET, GatewayNodeId);
+        if (GatewayNodeId == 0xFFu)
+            GatewayNodeId = 1;
+#if defined(USE_SERIAL)
+        Serial.print("Gateway Node ID:");
+        Serial.println(static_cast<unsigned>(GatewayNodeId));
+#endif
+    }
 
-    radio.setHighPower(); // Always use this for RFM69HCW
-    // Turn on encryption if desired:
-    if (ENCRYPT)
-        radio.encrypt(radioConfiguration.EncryptionKey());
-#else
-    radio.startAsleep();
 #endif
 
-#endif
+    EEPROM.get(D4PWMCOUNT, D4PwmCount);
 
 #if defined(TELEMETER_BATTERY_V)
     ResetAnalogReference();
@@ -240,19 +253,25 @@ void setup()
     TimeOfWakeup = millis(); // start loop timer now
 
     unsigned eepromLoopCount(0);
-    EEPROM.get(RadioConfiguration::TotalEpromUsed(), eepromLoopCount);
+    EEPROM.get(SLEEP_TIMER_COUNT_OFFSET, eepromLoopCount);
     if (eepromLoopCount && eepromLoopCount <= MAX_SLEEP_LOOP_COUNT)
-    	SleepLoopTimerCount = eepromLoopCount;
+        SleepLoopTimerCount = eepromLoopCount;
 
 #if defined(USE_SERIAL)
     Serial.print("SleepLoopTimerCount = ");
     Serial.println(SleepLoopTimerCount);
+#if TIMER_INIT_STYLE >= TIMER_INIT_STYLE_REV07
+    Serial.print("D4 PWM Count:");
+    Serial.println(static_cast<unsigned>(D4PwmCount));
 #endif
+#endif
+
+    Wire.end();
 }
 
 /* Power management:
  * For ListenAfterTransmitMsec we stay awake and listen on the radio and Serial.
- * Then we power down all: temperature sensor, radio and CPU and CPU
+ * Then we power down all: sensor, radio and CPU and CPU
  * sleep using SleepTilNextSample.
  */
 
@@ -262,13 +281,15 @@ namespace {
     unsigned long ListenAfterTransmitMsec = FirstListenAfterTransmitMsec;
     unsigned int sampleCount;
 
-    bool processCommand(const char *pCmd)
+    bool processCommand(const char* pCmd)
     {
         static const char SET_LOOPCOUNT[] = "SetDelayLoopCount";
+        static const char SET_GATEWAY[] = "SetGatewayNodeId";
+        static const char SET_D4PWMCOUNT[] = "SetD4PwmCount";
         if (strncmp(pCmd, SET_LOOPCOUNT, sizeof(SET_LOOPCOUNT) - 1) == 0)
         {
             pCmd = RadioConfiguration::SkipWhiteSpace(
-            		pCmd +	sizeof(SET_LOOPCOUNT)-1);
+                pCmd + sizeof(SET_LOOPCOUNT) - 1);
             if (pCmd)
             {
                 unsigned v = RadioConfiguration::toDecimalUnsigned(pCmd);
@@ -276,11 +297,33 @@ namespace {
                 if (v && v < MAX_SLEEP_LOOP_COUNT)
                 {
                     SleepLoopTimerCount = v;
-                    EEPROM.put(RadioConfiguration::TotalEpromUsed(), SleepLoopTimerCount);
+                    EEPROM.put(SLEEP_TIMER_COUNT_OFFSET, SleepLoopTimerCount);
                     return true;
                 }
             }
         }
+        else if (strncmp(pCmd, SET_GATEWAY, sizeof(SET_GATEWAY) - 1) == 0)
+        {
+            pCmd = RadioConfiguration::SkipWhiteSpace(
+                pCmd + sizeof(SET_GATEWAY) - 1);
+            if (pCmd)
+            {
+                GatewayNodeId = static_cast<uint8_t>(RadioConfiguration::toDecimalUnsigned(pCmd));
+                EEPROM.put(GATEWAY_NODEID_OFFSET, GatewayNodeId);
+                return true;
+            }
+        }
+        else if (strncmp(pCmd, SET_D4PWMCOUNT, sizeof(SET_D4PWMCOUNT) - 1) == 0)
+        {
+            pCmd = RadioConfiguration::SkipWhiteSpace(
+                pCmd + sizeof(SET_D4PWMCOUNT) - 1);
+            if (pCmd)
+            {
+                D4PwmCount = static_cast<uint8_t>(RadioConfiguration::toDecimalUnsigned(pCmd));
+                EEPROM.put(D4PWMCOUNT, D4PwmCount);
+                return true;
+            }
+        }        
         return false;
     }
 }
@@ -311,8 +354,9 @@ void loop()
         }
 
         // If the input is a carriage return, or the buffer is full:
+        bool eol = (input == '\r') || (input == '\n');
 
-        if ((input == '\r') || (sendlength == sizeof(sendbuffer) - 1)) // CR or buffer full
+        if (eol || (sendlength == sizeof(sendbuffer) - 1)) // CR or buffer full
         {
             sendbuffer[sendlength] = 0;
             if (processCommand(sendbuffer))
@@ -331,12 +375,12 @@ void loop()
     }
 #endif
 
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
+#if defined(USE_RFM69) 
     // RECEIVING
     // In this section, we'll check with the RFM69HCW to see
     // if it has received any packets:
 
-    if (radio.receiveDone()) // Got one!
+    if (enableRadio && radio.receiveDone()) // Got one!
     {
         // Print out the information:
         TimeOfWakeup = now; // extend sleep timer
@@ -359,10 +403,10 @@ void loop()
 #endif
         // RFM69 ensures trailing zero byte, unless buffer is full...so
         radio.DATA[sizeof(radio.DATA) - 1] = 0; // ...if buffer is full, ignore last byte
-        if (processCommand((const char *)&radio.DATA[0]))
+        if (processCommand((const char*)&radio.DATA[0]))
         {
 #if defined(USE_SERIAL)
-        	Serial.println("Received command accepted");
+            Serial.println("Received command accepted");
 #endif
         }
         if (radio.ACKRequested())
@@ -378,22 +422,8 @@ void loop()
     static bool SampledSinceSleep = false;
     if (!SampledSinceSleep)
     {
+        static char buf[64];
         SampledSinceSleep = true;
-
-#if defined(USE_TMP102)
-#if !defined(SLEEP_TMP102_ONLY)
-
-        sensor0.begin();
-        // read temperature data
-        float temperature = sensor0.readTempCfromShutdown();
-        sensor0.end();
-
-#if defined(USE_SERIAL)
-        // Print temperature and alarm state
-        Serial.print("Temperature: ");
-        Serial.println(temperature);
-#endif
-
         int batt(0);
 #if defined(TELEMETER_BATTERY_V)
         // 10K to VCC and (wired on board) 2.7K to ground
@@ -401,78 +431,117 @@ void loop()
         batt = analogRead(BATTERY_PIN);
         pinMode(BATTERY_PIN, INPUT); // turn off battery drain
 #endif
-        char sign = '+';
-        static char buf[64];
-        if (temperature < 0.f){
-            temperature = -temperature;
-            sign = '-';
+
+        Wire.begin();
+
+#if (defined(USE_TMP102) || defined(USE_TMP175)) && !defined(USE_SI7021) && !defined(USE_SHT41)
+        {
+#if defined(USE_TMP102)
+            auto temperature256 = tmp102.finishReadTempCx256();
+#elif defined(USE_TMP175)
+            auto temperature256 = tmp175.finishReadTempCx256();
+#endif
+            char sign = '+';
+            if (temperature256 < 0) {
+                temperature256 = -temperature256;
+                sign = '-';
+            }
+            else if (temperature256 == 0)
+                sign = ' ';
+
+            int whole = temperature256 >> 8;
+            if (whole >= static_cast<int>(MAX_VALID_TEMPERATURE_C))
+                sign = sign == '-' ? '<' : '>';
+            int frac = temperature256 & 0xFF;
+            frac *= 100;
+            frac >>= 7; // range of 0 through 199
+            frac += 5; // round up (away from zero)
+            if (frac >= 200)
+            {
+                whole += 1; // carry
+                frac = 0;
+            }
+            frac >>= 1;
+            sprintf(buf, "C:%u, B:%d, T:%c%d.%02d", sampleCount++,
+                batt,
+                sign, whole, frac);
+#if defined(USE_SERIAL)
+            Serial.println(buf);
+#endif
+#if defined(USE_RFM69) 
+            if (enableRadio)
+                radio.sendWithRetry(GatewayNodeId, buf, strlen(buf));
+#endif
         }
-        else if (temperature == 0.f)
-            sign = ' ';
+#endif
+#if defined(USE_HIH6130) || defined(USE_SI7021) || defined(USE_SHT41)
+        {
+            float humidity(0), temperature(0);
+#if defined(USE_HIH6130)
+            sensor0.begin();
+            // read temperature data
+            unsigned char stat = sensor0.GetReadings(humidity, temperature);
+            sensor0.end();
+            if (stat != 0)
+            {
+                SampledSinceSleep = false;
+                Wire.end();
+                return;
+            }
+#elif defined(USE_SI7021)
+#if defined(USE_TMP102)
+            // The temperature readout from the Si7021 only has about 1 degree F resolution
+            // If a TMP102 or TMP175 is also installed and compiled, use its temperature
+            temperature = tmp102.finishReadTempCx256() / 256.f;
+#elif defined(USE_TMP175)
+            temperature = tmp175.finishReadTempCx256() / 256.f;
+#else
+            si7021.startReadTemperature();
+            temperature = si7021.readTemperature();
+#endif
+            si7021.startReadHumidity();
+            humidity = si7021.readHumidity();
+#elif (defined(USE_SHT41))
+            temperature = sht41.finishReadTempCx256() / 256.f;
+            humidity = sht41.humidityX256() / 256.f;
+            if (humidity < 0)
+                humidity = 0;
+            if (humidity > 100.f)
+                humidity = 100.f;
+#endif
 
-        int whole = (int)temperature;
+            char sign = '+';
+            if (temperature < 0.f) {
+                temperature = -temperature;
+                if (temperature < MAX_VALID_TEMPERATURE_C)
+                    sign = '-';
+                else
+                    sign = '<';
+            }
+            else if (temperature == 0.f)
+                sign = ' ';
+            else if (temperature >= MAX_VALID_TEMPERATURE_C)
+                sign = '>';
 
-        sprintf(buf, "C:%u, B:%d, T:%c%d.%02d", sampleCount++,
-            batt,
-            sign, whole,
-            (int)(100.f * (temperature - whole)));
+            int whole = (int)temperature;
+            int wholeRh = (int)humidity;
+
+            sprintf(buf, "C:%u, B:%d, T:%c%d.%02d R:%d.%02d", sampleCount++,
+                batt,
+                sign, whole,
+                (int)(100.f * (temperature - whole)),
+                wholeRh,
+                (int)(100.f * (humidity - wholeRh)));
 #if defined(USE_SERIAL)
-        Serial.println(buf);
+            Serial.println(buf);
 #endif
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        if (enableRadio)
-            radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
+#if defined(USE_RFM69) 
+            if (enableRadio)
+                radio.sendWithRetry(GatewayNodeId, buf, strlen(buf));
 #endif
-#endif
-#elif defined(USE_HIH6130)
-        sensor0.begin();
-        // read temperature data
-        float humidity, temperature;
-        unsigned char stat = sensor0.GetReadings(humidity, temperature);
-        sensor0.end();
-
-#if defined(USE_SERIAL)
-        // Print temperature and alarm state
-        Serial.print("Temperature: ");
-        Serial.print(temperature);
-        Serial.print(" stat: ");
-        Serial.print((int)stat);
-        Serial.print(" Humidity: ");
-        Serial.println(humidity);
-#endif
-
-        int batt(0);
-#if defined(TELEMETER_BATTERY_V)
-        pinMode(BATTERY_PIN, INPUT_PULLUP); // sample the battery
-        batt = analogRead(BATTERY_PIN);
-        pinMode(BATTERY_PIN, INPUT); // turn off battery drain
-#endif
-        char sign = '+';
-        static char buf[64];
-        if (temperature < 0.f){
-            temperature = -temperature;
-            sign = '-';
         }
-        else if (temperature == 0.f)
-            sign = ' ';
-
-        int whole = (int)temperature;
-        int wholeRh = (int) humidity;
-
-        sprintf(buf, "C:%u, B:%d, T:%c%d.%02d R:%d.%02d", sampleCount++,
-            batt,
-            sign, whole,
-            (int)(100.f * (temperature - whole)),
-			wholeRh,
-			(int)(100.f * (humidity - wholeRh)));
-#if defined(USE_SERIAL)
-        Serial.println(buf);
 #endif
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        if (enableRadio)
-            radio.sendWithRetry(GATEWAY_NODEID, buf, strlen(buf));
-#endif
-#endif
+        Wire.end();
     }
 
     if (now - TimeOfWakeup > ListenAfterTransmitMsec)
@@ -481,11 +550,22 @@ void loop()
         SampledSinceSleep = false;
         TimeOfWakeup = millis();
         ListenAfterTransmitMsec = NormalListenAfterTransmit;
+#if defined(USE_TMP102)
+        tmp102.startReadTemperature();
+#endif
+#if defined(USE_TMP175)
+        tmp175.startReadTemperature();
+#endif
+#if defined(USE_SI7021)
+#endif
+#if defined(USE_SHT41)
+        sht41.startReadTemperature();
+#endif
     }
 }
 
 #if !defined(SLEEP_WITH_TIMER2)
-void sleepPinInterrupt()	// requires 1uF and 10M between two pins
+void sleepPinInterrupt()	// requires R and C parallel between two pins, depending on PCB rev
 {
     detachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN));
 }
@@ -496,22 +576,23 @@ ISR(TIMER2_OVF_vect) {} // do nothing but wake up
 namespace {
     unsigned SleepTilNextSample()
     {
-
 #if defined(USE_SERIAL)
         Serial.print("sleep for ");
         Serial.println(SleepLoopTimerCount);
+        Serial.flush();
         Serial.end();// wait for finish and turn off pins before sleep
         pinMode(0, INPUT); // Arduino libraries have a symbolic definition for Serial pins?
         pinMode(1, INPUT);
 #endif
 
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        radio.SPIoff();
+#if defined(USE_RFM69) 
+        if (enableRadio)
+            radio.sleep();
 #endif
 
 #if defined(TELEMETER_BATTERY_V)
-        analogReference(EXTERNAL); // This sequence drops idle current by 30uA
-        analogRead(BATTERY_PIN); // doesn't shut down the band gap until we USE ADC
+        auto savedADC = ADCSRA;
+        ADCSRA = 0; // Turn off ADC. credit to https://gist.github.com/JChristensen/5616922
 #endif
 
         // sleep mode power supply current measurements indicate this appears to be redundant
@@ -520,22 +601,43 @@ namespace {
         unsigned count = 0;
 
 #if !defined(SLEEP_WITH_TIMER2)
-        // this requires 1uF and 10M in parallel between pins 3 & 4
+        // this requires 1uF and 10M in parallel to trigger INT1 on pin 3
         while (count < SleepLoopTimerCount)
         {
             power_timer0_enable(); // delay() requires this
+            // determined empirically using BatteryExtenderTest
+            static const int TIMER_INIT_CHARGE_MSEC = 20; //AA cell internal resistance affects this
+#if (TIMER_INIT_STYLE != TIMER_INIT_STYLE_REV06) 
             pinMode(TIMER_RC_PIN, OUTPUT);
             digitalWrite(TIMER_RC_PIN, HIGH);
-            delay(10); // Charge the 1uF
+            for (uint8_t i = 0; ; i++)
+            {
+                digitalWrite(TIMER_RC_GROUND_PIN, LOW);
+                delay(TIMER_INIT_CHARGE_MSEC);
+#if TIMER_INIT_STYLE >= TIMER_INIT_STYLE_REV07 // only the charge pump needs to be cycled
+                if (i == D4PwmCount)
+                    break;
+                digitalWrite(TIMER_RC_GROUND_PIN, HIGH);
+                delay(TIMER_INIT_CHARGE_MSEC);
+#else
+                break;
+#endif
+            }
+#else
+            pinMode(TIMER_RC_GROUND_PIN, OUTPUT);
+            digitalWrite(TIMER_RC_GROUND_PIN, LOW);
+            delay(TIMER_INIT_CHARGE_MSEC); // Charge the C
+            pinMode(TIMER_RC_GROUND_PIN, INPUT);
+#endif
+            pinMode(TIMER_RC_PIN, INPUT);
             cli();
             power_timer0_disable(); // timer0 powered down again
             attachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN), sleepPinInterrupt, LOW);
             set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-            pinMode(TIMER_RC_PIN, INPUT);
             sleep_enable();
             sleep_bod_disable();
             sei();
-            sleep_cpu(); // about 300uA, average. About 200uA and rises as cap discharges
+            sleep_cpu(); // Power supply measured: About 1 to 2 uA rising to about 300 uA as RC approaches Vdd/2 on REV05 and lower
             sleep_disable();
             sei();
             count += 1;
@@ -592,9 +694,14 @@ namespace {
         power_all_enable();
 
 #if defined(TELEMETER_BATTERY_V)
+        ADCSRA = savedADC;
         ResetAnalogReference();
 #endif
 
+#if defined(USE_RFM69) 
+        if (enableRadio)
+            radio.setMode(RF69_MODE_STANDBY);
+#endif
 
 #if defined(USE_SERIAL)
         Serial.begin(9600);
@@ -602,20 +709,16 @@ namespace {
         Serial.println(" wakeup");
 #endif
 
-#if defined(USE_RFM69) && !defined(SLEEP_RFM69_ONLY)
-        radio.SPIon();
-#endif
-
         return count;
     }
 
 #if defined(TELEMETER_BATTERY_V)
-	void ResetAnalogReference()
-	{
-		analogReference(INTERNAL);
-		pinMode(BATTERY_PIN, INPUT);
-		analogRead(BATTERY_PIN);
-		delay(10); // let ADC settle
-	}
+    void ResetAnalogReference()
+    {
+        analogReference(INTERNAL);
+        pinMode(BATTERY_PIN, INPUT);
+        analogRead(BATTERY_PIN);
+        delay(10); // let ADC settle
+    }
 #endif
 }
