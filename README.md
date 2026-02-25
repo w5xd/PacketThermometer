@@ -109,7 +109,7 @@ before soldering the Pro Mini in place. This order of assembly is <i>required</i
 of installing this PCB in the 3D printed enclosure:
 <ol>
 <li>Prepare an Arduino with headers that can be jumped to headers on the PCB at the Arduino
-position. If you are going to use a 5V Arduino (like an Uno or Mega) then you <i>must</i> omit
+position. A 5V Arduino (like an Uno or Mega) can be used in this test step, but then you <b><i>must</i></b> omit
 all the 3.3 volt parts in the following SMD baking step!
 <li>Bake all the Battery Extender SMD components onto the PCB. 
 <li>Install headers on the PCB that will eventually be used to mount the 3.3V Pro Mini.
