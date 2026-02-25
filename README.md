@@ -6,7 +6,7 @@ Included are: a circuit design using Arduiono, a PCB design for the Arduino Pro 
 
 The hardware configuration is the combination of the RFM69 wireless module
 (<a href='https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide'>https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide</a>)
-and any of several temperature sensors listed here.
+and any of several temperature and humidity sensors listed here.
 The sensor positions on the PCB are:
 <ul>
 
@@ -29,26 +29,34 @@ when set to its default 14 bit temperature digitization.
 
 Battery Extender
 
-REV07 and later have the Battery Extender Circuit. In the prior versions of the PCB (REV05 and earlier), the sleep time is
-determined by a 
-single R and C on the INT pin (D3 on the Arduino). Those components can be
+Three different circuits for implementing the long sleep time have been implemented. The original design, implemented
+on PCB05 and earlier, is simply a parallel RC on the INT pin (D3 on the Arduino). Those components can be
 chosen for an RC delay of as much as 100 seconds (10M times 10uF). That slow moving input stays close to
 Vcc/2 for an extended period, which in turn causes the Atmega328 to draw up to about 
 500uA above its minimal
-sleep current for an extended length of time (See the Atmega328P specifications.)
+sleep current for an extended length of time (See the Atmega328P specifications.) PCB06 places an inverting 74HC1G14 schmitt trigger 
+to handle the slow-moving RC input. It has a lower current draw near Vcc/2, peaking below 300 uA.
+PCB8 implements the MOSFET Battery Extender. PCB9 has PCB placements for all the above. The sketch
+must be compiled for the hardware on the PCB, of course. And there is an option in the ino file for "none of the above"
+which uses the CPU's Timer2 circuit and constant current draw of about 200uA.
+
+The logic family of the schmitt trigger is important. The
+74AHC1G14 draws about triple the current of the 74HC1G14 per their datasheets regarding slow moving inputs through Vcc/2. 
+See the file <code>power&nbsp;supply&nbsp;current&nbsp;during&nbsp;RC&nbsp;decay.pdf</code> for actual measurements on a PCB version 6 with the CPU and TMP175 but
+no RFM69.
+
+REV08 and later have the Battery Extender Circuit. 
 The Battery Extender eliminates the long period of excess current draw by 
 accelerating the decay through Vcc/2. The circuit depends on a 
 p-channel MOSFET with a low
-gate threshold. A threshold specification of significantly smaller than -Vdd/2 is required (i.e. much less
-than -1.65 volts.) The nominal threshold of the specified DMP1045U part
-is -700mV. That MOSFET, Q12, turns on when the RC circuit at C11, R11 discharges that far
+gate threshold. The nominal threshold of the specified DMP1045U part
+is -700mV, well outside of -Vcc/2. That MOSFET, Q12, turns on when the RC circuit at C11, R11 discharges that far
 below Vcc. This in turn activates Q13 to quickly truncate the R11/C11 decay through R12, which then
 crosses Vcc/2 in a few milliseconds. The other pair of MOSFETs, Q10 and Q11, implements a charge pump so that the
 RC circuit discharges from as much as double Vcc (about 6V) to get a much longer time 
 delay than is feasible without it.
 The capacitors in the Battery Extender circuit can be identical, but must be ceramic 
-(for very low leakage current
-compared to polarized capacitors.) Here is the modeled 
+(for very low leakage current compared to polarized capacitors.) Here is the modeled 
 voltage at pin D3 from the LTSpice model.
 
 <p align='center'><a href='BatteryExtenderTrace.pdf'><img width="75%" src='BatteryExtenderTrace.png' alt='BatteryExtenderTrace'/></a></p>
@@ -57,14 +65,7 @@ voltage at pin D3 from the LTSpice model.
 Later PCB versions can be reverted to the REV05 single R and C timer by omitting all the Battery Extender components
 except for  R11 and C11, along with installing a jumper in the holes provided at D12. The
 appropriate #define in the ino file for REV05 must be uploaded.
-(Why is REV06 not mentioned? It was a failed attempt to extend battery life using an external gate to detect the
-decaying RC voltage crossing toward zero. The gate worked no better than the Atmega328 input.)
 
-A second simplifying alternative at build time is to omit the charge pump components: R10, C10, Q10, D10, D11 and Q11.
-The result will be the time delay of R11/C11 discharging from one diode drop below Vdd (D12) down to Q12's
-gate threshold below Vdd. LTSpice predicts that time to be about 9 seconds, but the actual interval depends strongly
-on exactly what the diode drop and the gate threshold happen to be for the components as installed. The charge pump 
-makes the delay far longer (43 seconds if charged C10 is dumped only once) and more predictable.
 
 PCB assembly
 
@@ -73,13 +74,33 @@ The parts list for building the PCB, including the Battery Extender:
 https://www.mouser.com/Tools/Project/Share?AccessID=548d5f9ecc</a>. The headers and battery holders,
 and any hardware needed to mount in an enclosure are also needed.
 
+|Quan|Item|Value|Form|
+|:-|:-|:-|:-|
+4|C1, C2, C3, C5|0.1µF|EIA 1206|
+|3|C10, C11, C21|10µF|EIA 0805|
+|1|C4|10µF|EIA 1206|
+|3|D10, D11, D12|DRB751V40T1G||
+|2|HIH6131, TMP175|SO8||
+|1|J15|2.1 mm barrel jack PJ-202A|for power plug|
+|1|Q10|DMP3165l|SOT23-3|
+|2|Q11, Q13|DMN67D8L|SOT23-3|
+|1|Q12|DMP1045U|SOT23-3|
+|2|R9, R11|3.3M|EIA 0805|
+|1|R10|330|EIA 0805|
+|1|R12|10K|EIA 0805|
+|1|R13|1M|EIA 0805|
+|2|R14, R15|2.2K|EIA 0805|
+|1|R17|2.7K|EIA 1206|
+|1|R21|10M|EIA 0805|
+
+Only one of the battery saver circuit, or the 74HC1G14 time delay circuit, can be installed.<br/>
+The battery saver is R9-R13, D10-D12, Q10-Q12, C10 and C11.<br/>
+The 74HC1G14 needs R21 and C21.<br/><br/>
+
 While the PCB has multiple positions for placing temperature sensors, the sketch reports temperature
-from just one of them.
-The board position for the TMP102 accommodates that chip's 0.5mm lead spacing. That small spacing
-is challenging to hand assemble. I succeeded on three boards, but in the first two attempts, I had
-to hand rework after the SMD oven bake resulted in one or more leads not connected. 
-The third attempt used the technique in this
-<a href='https://www.youtube.com/watch?v=xPFujTJbUkI'>video</a> and resulted in all 6 leads nicely soldered.
+from just one of them per the #define in the ino file.
+I had success baking the SMD circuits with tight clearances using the technique in this
+<a href='https://www.youtube.com/watch?v=xPFujTJbUkI'>video</a>.
 The Battery Extender circuit is positioned under the Pro Mini, which makes it impossible to test
 if the Arduino is in place. If you are going to install the assembled PCB in the 3D printed
 weather tight enclosure, the assembly only fits if you solder the Pro Mini in place with, at most,
@@ -89,11 +110,9 @@ of installing this PCB in the 3D printed enclosure:
 <ol>
 <li>Prepare an Arduino with headers that can be jumped to headers on the PCB at the Arduino
 position. If you are going to use a 5V Arduino (like an Uno or Mega) then you <i>must</i> omit
-all the 3.3 volt parts in the following SMD baking step!.
-<li>Bake all the Battery Extender SMD components onto the PCB. (Do not bake  the RFM69 
-transceiver. Install it after all the other tests.) If your test Arduino
-is 3.3 V, then you may simultaneously bake the sensor. (The Si7021 is 3.3V only!)
-<li>Install headers on the PCB that will eventually be used to mount the Pro Mini.
+all the 3.3 volt parts in the following SMD baking step!
+<li>Bake all the Battery Extender SMD components onto the PCB. 
+<li>Install headers on the PCB that will eventually be used to mount the 3.3V Pro Mini.
 <li>Upload the WirelessThermometer.ino sketch with appropriate #define's set onto the
 test Arduino.
 <li>Jumper the following pins between the two boards:
@@ -128,11 +147,7 @@ to the regulator on the Pro Mini. The PCB has holes to accommodate the jack on e
 the PCB's top or bottom.
 </ul>
 
-Of the sleep options available at compile time in this sketch, the best
-battery life is obtained using an external circuit as opposed to the built in
-Atmega timer support. A single resistor and capacitor are supported in
-all PCB revisions, while
-REV07 and later have the Battery Extender circuit described above.
+
 SMD components of size 1206 and 0805 are easy enough to solder by hand. 
 A pair of AAA lithium cells
 powered one of these for 9 months (and counting) with SetDelayLoopCount 

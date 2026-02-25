@@ -33,9 +33,9 @@
 // code only supports reporting any one of TMP102 HIH6130 TMP175 SI7021
 // except: SI7021 can also be paired with TMP sensor
 //#define USE_TMP102_PCB
-#define USE_TMP102_BREAKOUT
+//#define USE_TMP102_BREAKOUT
 //#define USE_HIH6130
-//#define USE_TMP175
+#define USE_TMP175
 //#define USE_SI7021
 //#define USE_SHT41
 
@@ -53,12 +53,15 @@
 #define TELEMETER_BATTERY_V // ...because the power supply voltage wont ever change.
 
 #define TIMER_INIT_STYLE_REV05 5    // REV05 of PCB and earlier. R and C across D3 and D4
-#define TIMER_INIT_STYLE_REV06 6  // REV06 of PCB ONLY. with SN74AHC1 Schmitt trigger. 
-#define TIMER_INIT_STYLE_REV07 7    // REV07 of PCB. D3 and D4 participate in charge pump
+#define TIMER_INIT_STYLE_REV06 6  // REV06 of PCB. with 74HC1G14 Schmitt trigger. 
+#define TIMER_INIT_STYLE_REV07 7    // REV07+ PCB have battery extender: D3 and D4 charge pump
+// PCB rev 9 can be populated as any of the above
 
-#define TIMER_INIT_STYLE TIMER_INIT_STYLE_REV05 // One of the above
+#define TIMER_INIT_STYLE TIMER_INIT_STYLE_REV07 // One of the above
+/* REV09 of the PCB has component positions for ANY of the above configurations.
+** Build this sketch for the way your board is actually populated*/
 
-// Using TIMER2 to sleep costs about 200uA of sleep-time current, but saves the 1uF/10Mohm external parts
+// Using TIMER2 to sleep costs about 200uA continuous of sleep-time current, but saves the 1uF/10Mohm external parts
 //#define SLEEP_WITH_TIMER2
 
 #if defined(USE_RFM69)
@@ -565,7 +568,7 @@ void loop()
 }
 
 #if !defined(SLEEP_WITH_TIMER2)
-void sleepPinInterrupt()	// requires R and C parallel between two pins, depending on PCB rev
+void sleepPinInterrupt()	// requires RC parallel between two pins, depending on PCB rev
 {
     detachInterrupt(digitalPinToInterrupt(TIMER_RC_PIN));
 }
@@ -601,7 +604,7 @@ namespace {
         unsigned count = 0;
 
 #if !defined(SLEEP_WITH_TIMER2)
-        // this requires 1uF and 10M in parallel to trigger INT1 on pin 3
+        // this requires external RC (e.g. 1uF and 10M) in parallel to trigger INT1 on pin 3
         while (count < SleepLoopTimerCount)
         {
             power_timer0_enable(); // delay() requires this
